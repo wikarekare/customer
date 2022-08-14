@@ -1,0 +1,182 @@
+#!/usr/local/bin/ruby
+# Move a customer to a new distribution tower.
+
+require 'wikk_configuration'
+require 'wikk_sql'
+
+load '/wikk/etc/wikk.conf'
+
+# Check for existing subnet allocation with customer_dns_subnet table
+# If we find a subnet for this site, on the new tower, we return it
+def find_existing_subnet(sql:, dist_site_name:, c_site_name:)
+  query = <<~SQL
+    SELECT ds.dns_subnet_id
+    FROM distribution AS dist, dns_network AS dn, dns_subnet AS ds, customer_dns_subnet AS cds, customer AS c
+    WHERE dist.site_name = '#{dist_site_name}'
+    AND dist.distribution_id = dn.distribution_id
+    AND dn.dns_network_id = ds.dns_network_id
+    AND ds.dns_subnet_id = cds.dns_subnet_id
+    AND cds.customer_id = c.customer_id
+    AND c.site_name = '#{c_site_name}'
+  SQL
+  res = sql.query_hash(query)
+  return nil if sql.affected_rows == 0
+
+  res.first['dns_subnet_id'].to_i
+end
+
+# Set the customer distribution site to the new one
+def set_customer_distribution(sql:, dist_site_name:, c_site_name:)
+  customer_distribution_query = <<~SQL
+    UPDATE customer AS c, customer_distribution AS cd
+      SET cd.distribution_id = (SELECT distribution_id FROM distribution where site_name='#{dist_site_name}')
+      WHERE c.site_name = '#{c_site_name}'
+      AND c.customer_id = cd.customer_id
+  SQL
+  sql.query(customer_distribution_query)
+  return sql.affected_rows
+end
+
+# ensure other dns subnet table entries for this customer are set to retired.
+def retire_existing_dns_subnet(sql:, c_site_name:, new_dns_subnet_id: )
+  customer_dns_subnet_query = <<~SQL
+    UPDATE dns_subnet AS ds, customer AS c, customer_dns_subnet AS cds
+    SET cds.end_date = NOW(), ds.state = 'retired'
+    WHERE c.site_name = '#{c_site_name}'
+    AND c.customer_id = cds.customer_id
+    AND cds.dns_subnet_id != '#{new_dns_subnet_id}'
+    AND cds.dns_subnet_id = ds.dns_subnet_id
+    AND ds.state = 'active'
+  SQL
+
+  puts "retire old dns_subnet table entries for this #{c_site_name}"
+  sql.query(customer_dns_subnet_query)
+end
+
+# ensure the dns subnet table entry is set to active.
+def activate_dns_subnet(sql:, c_site_name:, dns_subnet_id:)
+  customer_dns_subnet_query = <<~SQL
+    INSERT INTO customer_dns_subnet (customer_id, dns_subnet_id, start_date)
+      SELECT customer_id, '#{dns_subnet_id}', NOW()
+      FROM customer WHERE site_name = '#{c_site_name}'
+    ON DUPLICATE KEY UPDATE start_date = NOW(), end_date = NULL
+  SQL
+
+  dns_subnet_query = <<~SQL
+    UPDATE dns_subnet
+    SET state = 'active'
+    WHERE dns_subnet_id = '#{dns_subnet_id}'
+  SQL
+
+  puts "Link customer #{c_site_name} to subnet #{dns_subnet_id}, setting the dns_subnet table entry to active"
+  sql.query(customer_dns_subnet_query)
+  sql.query(dns_subnet_query)
+end
+
+# Find the first free dns_subnet entry for distribution site
+def first_free_dnssubnet(sql:, dist_site_name:)
+  query = <<~SQL
+    SELECT ds.dns_subnet_id
+    FROM distribution AS dist, dns_network AS dn, dns_subnet AS ds
+    WHERE dist.site_name = '#{dist_site_name}'
+    AND dist.distribution_id = dn.distribution_id
+    AND dn.dns_network_id = ds.dns_network_id
+    AND ds.state = 'free'
+    ORDER BY ds.dns_subnet_id
+    LIMIT 1
+  SQL
+
+  res = sql.query_hash(query)
+  return nil if sql.affected_rows == 0
+
+  return res.first['dns_subnet_id'].to_i
+end
+
+def current_tower?(sql:, dist_site_name:, c_site_name:)
+  # See if it is dist_site_name is the customer's current distribution site_name
+  # Will get 1 result if true
+  query = <<~SQL
+    SELECT d.distribution_id
+    FROM customer AS c, customer_distribution AS cd, distribution AS d
+    WHERE c.site_name = '#{c_site_name}'
+    AND c.customer_id = cd.customer_id
+    AND cd.distribution_id = d.distribution_id
+    AND d.site_name = '#{dist_site_name}'
+  SQL
+
+  sql.query(query)
+  # Only interested in the number of rows returned
+  return sql.affected_rows != 0
+end
+
+def gen_site_dns_hosts_query(distribution_site_name:, site_name:, dns_subnet_id:, subnet_size: 32, update: false)
+  # UNIQUE KEY `the_host` (`host_index`,`dns_subnet_id`)
+  query = 'insert '
+  query += 'IGNORE ' unless update
+  query += "into dns_host (host_name, dns_type, dns_subnet_id, host_index ) values ( '#{distribution_site_name}-#{site_name}-net', 'A', #{dns_subnet_id}, 0), "
+  (1..subnet_size - 3).each do |i|
+    query += "( '#{distribution_site_name}-#{site_name}-#{'%02d' % i}', 'A', #{dns_subnet_id}, #{i} ), "
+  end
+  query += "( '#{distribution_site_name}-#{site_name}-r', 'A', #{dns_subnet_id}, #{subnet_size - 2} ), "
+  query += "( '#{distribution_site_name}-#{site_name}-bc', 'A', #{dns_subnet_id}, #{subnet_size - 1} ) "
+
+  query += 'ON DUPLICATE KEY UPDATE host_name = VALUES(host_name)' if update
+  return query
+end
+
+# Create the dns_host table entries for this new customer.
+def gen_dns_host_entries(sql:, site_name:, update: false, debug: false)
+  dist_site_name = ''
+  dns_subnet_id = subnet_size = 0
+
+  puts dns_host_gen_insert_params(site_name: site_name), "\n" if debug
+  sql.each_hash(dns_host_gen_insert_params(site_name: site_name)) do |row|
+    dist_site_name = row['dist_site_name']
+    dns_subnet_id = row['subnet_id']
+    subnet_size = row['size'].to_i + 1
+  end
+  puts "#{dist_site_name} #{site_name} subnet ID: #{dns_subnet_id}, size: #{subnet_size}", "\n" if debug
+  if dist_site_name != '' && dns_subnet_id != 0
+    puts "Creating dns_host entries for #{dist_site_name} #{site_name}", "\n"
+    query = gen_site_dns_hosts_query(distribution_site_name: dist_site_name, site_name: site_name, dns_subnet_id: dns_subnet_id, subnet_size: subnet_size, update: update)
+    if debug
+      puts query
+    else
+      sql.query(query)
+      puts "Added or updated #{sql.affected_rows} rows in dns_host"
+    end
+  end
+end
+
+# Change the distribution_id in the 'customer_distribution' table
+# Allocate (or reuse) a dns_subnet
+# Add ar update 'customer_dns_subnet' record
+# A pf table update will get triggered via the regular cron job
+# Need to 'make new' in /wikk/etc/namebd/wikarekare to update DNS
+def move_customer(dist_site_name:, c_site_name:, dns_subnet_id: nil)
+  mysql_conf = WIKK::Configuration.new(MYSQL_CONF)
+  WIKK::SQL.connect(mysql_conf) do |sql_fd|
+    if current_tower?(sql: sql_fd, dist_site_name: dist_site_name, c_site_name: c_site_name)
+      warn("#{c_site_name} already using distribution tower #{dist_site_name}")
+      return
+    end
+
+    # If we haven't already been given a dns_subnet_id, look for an existing one
+    dns_subnet_id ||= find_existing_subnet(sql: sql_fd, dist_site_name: dist_site_name, c_site_name: c_site_name)
+    # If there wasn't an existing one, fetch the first free one (Nb. Don't run this in parallel)
+    dns_subnet_id ||= first_free_dnssubnet(sql: sql_fd, dist_site_name: dist_site_name)
+
+    if dns_subnet_id.nil?
+      warn('Unable to allocate dns subnet')
+      return
+    end
+
+    swap_customer_distribution(sql: sql_fd, dist_site_name: dist_site_name, c_site_name: c_site_name)
+    retire_existing_dns_subnet(sql: sql_fd, c_site_name: c_site_name, new_dns_subnet_id: dns_subnet_id)
+    activate_dns_subnet(sql: sql_fd, c_site_name: c_site_name, dns_subnet_id: dns_subnet_id)
+
+    gen_site_dns_hosts_query(distribution_site_name: dist_site_name, site_name: c_site_name, dns_subnet_id: dns_subnet_id, subnet_size: 32, update: false)
+    return
+  end
+  warn('Failed to connect to DB')
+end

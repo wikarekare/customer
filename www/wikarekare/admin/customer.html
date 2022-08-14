@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=1500, initial-scale=1.0, user-scalable=yes">
+<meta charset="utf-8">
+<title>Customer</title>
+  <link rel="stylesheet" href="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.3.0/css/ol.css">
+  <script src="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.3.0/build/ol.js"></script>
+  <style>
+    .map {
+      height: 100%;
+      width: 100%;
+    }
+  option.red_color {
+    background-color: '#ff0000';
+  }
+  option.grey_color {
+    background-color: '#cccccc';
+  }
+  option.blue_color {
+    background-color: '#0000ff';
+  }
+  </style>
+
+  <script src="/js/jquery-3.0.0.min.js"></script>
+
+  <script src="/js/wikk_ajax-min.js"></script>
+  <script src="/js/wikk_web_auth-min.js"></script>
+  <script src="/js/wikk_params.js"></script>
+  <script src="/js/customer_comms.js"></script>
+  <script src="/js/customer_networks.js"></script>
+  <script src="/js/distribution_comms.js"></script>
+  <script src="/js/elevations_comms.js"></script>
+  <script src="/js/streetaddress_comms.js"></script>
+
+<script>
+  var site_subnet_list = [];
+  
+  function save_all() { alert('I don\'t actually do anything'); }
+
+  function create_user( ) { 
+    if (confirm("Don't push ok, unless you really mean it")) {
+        alert( "You pressed OK!" );
+    } else {
+        alert( "You pressed Cancel!" );
+    }
+    alert('Sorry, not going to do it.'); 
+  }
+
+  function allocate_ip() { alert('Not implemented'); }
+
+  function edit_host_entries() { alert('A new feature, coming soon'); }
+
+  function save_entry(field_name) {
+    var site_name = document.getElementById("site_name");
+    if(Object.prototype.toString.call(field_name) === '[object Array]')
+    { var s = "\n"
+      for(var i=0; i<field_name.length; i++){
+        var e = document.getElementById(field_name[i]);
+        s += e.name + "\n";
+      }
+      alert('Wouldn\'t it be nice if I really saved the field' + s + "For: " + site_name.value);
+    }
+    else {
+      var e = document.getElementById(field_name);
+      alert("Wouldn't it be nice if I really saved the field\n" + e.name + "\n For: " + site_name.value);
+    }
+  }
+  
+  ///////////////////////////////////// New ///////////////////////////////////////////////////////
+  var last_tower = -1; 
+  var image_blue = '/wikk_icons/wifi64.png';
+  var image_red = '/wikk_icons/wifi64-red.png';
+  var tower_locations = [];
+  //We want the users current tower to show up in Red, and the other towers to show up as blue.
+  
+  function set_tower_prev(t) {
+    var current_tower = document.getElementById('distribution');
+    
+    //Reset image to blue, if towers have changed.
+    if(last_tower != -1 && last_tower != t) {
+      window.tower_locations[last_tower].style.image.iconImage.src = image_blue;
+    }
+    
+    last_tower = t;
+    current_tower.value = t; //Changes selection option, if we didn't get here from a selection.
+    if(t != -1 && window.tower_locations[t] != null) {
+        window.tower_locations[t].style.image.iconImage.src = image_red;
+    }
+  }
+  
+  function set_tower(t) {
+    if(site_subnet_list != null && site_subnet_list.length > 0) {
+      for(var i=0; i<site_subnet_list.length; i++){
+        if(site_subnet_list[i]['tower'] == t.value){
+          set_network_entries(site_subnet_list[i], (site_subnet_list[i]['state'] == 'active'));
+          return;
+        }
+      }
+    }
+    set_network_entries(null, false);
+  }
+  
+  function revert_tower() {
+    var distribution_select = document.getElementById('distribution');
+
+    if(site_subnet_list != null && site_subnet_list.length > 0) {
+      for(var i=0; i<site_subnet_list.length; i++){
+        if(site_subnet_list[i]['state'] == 'active'){
+          set_network_entries(site_subnet_list[i], true)
+          distribution_select.value = site_subnet_list[i]['tower']
+        }
+      }
+    }
+  }
+  
+  function set_value_and_style(field, value, style) {
+    field.value = value;
+    field.style = style;
+  }
+  
+  function red_if_inactive(field, value, active) {
+    if(active) {
+      set_value_and_style(field, value, "color:black;");
+    } else {
+      set_value_and_style(field, value, "color:red;");
+    }
+  }
+  
+  function find_subnet_by_tower(tower) {
+    if(site_subnet_list != null && site_subnet_list.length > 0) {
+      for(var i=0; i<site_subnet_list.length; i++){
+        if(site_subnet_list[i]['tower'] == tower){
+          return i
+        }
+      }
+    }
+    return -1;
+  }
+  
+  function color_dropdown() {
+    var distribution_select = document.getElementById('distribution');
+    for(var i=0; i < distribution_select.length; i++) {
+      subnet_index = find_subnet_by_tower( distribution_select.options[i].value );
+      if( subnet_index >= 0 ) {
+        if(site_subnet_list[subnet_index]['state'] == 'active'){
+          distribution_select.options[i].disabled = false;
+          distribution_select.options[i].class = "blue_color";
+        } else {
+          distribution_select.options[i].disabled = false;
+          distribution_select.options[i].class = "red_color";
+        }
+      } else {
+        distribution_select.options[i].disabled = true;
+        distribution_select.options[i].class = "grey_color";
+      }
+    }
+  }
+  
+  function set_network_entries(subnet, active) {
+    var site_lan_first_address = document.getElementById("site_lan_first_address");
+    var site_lan_last_address = document.getElementById("site_lan_last_address");
+    var site_lan_router = document.getElementById("site_lan_router");
+    var site_lan_mask = document.getElementById("site_lan_mask");
+    
+    var site_uplink_address = document.getElementById("site_uplink_address");
+    var site_uplink_route = document.getElementById("site_uplink_route");
+    var site_uplink_mask = document.getElementById("site_uplink_mask");
+
+    if(active == null) { active = false; }
+    if(subnet != null) {
+      red_if_inactive( site_lan_first_address, subnet['dhcp_start'], active);
+      red_if_inactive( site_lan_last_address,  subnet['dhcp_end'], active);
+      red_if_inactive( site_lan_router, subnet['gateway'], active);
+      red_if_inactive( site_lan_mask, subnet['netmask'], active);
+      
+      red_if_inactive( site_uplink_address, subnet['uplink'], active);
+      red_if_inactive( site_uplink_route, "", active);
+      red_if_inactive( site_uplink_mask, "255.255.255.0", active);
+    }
+    else {
+      site_lan_first_address.value = "";
+      site_lan_last_address.value = "";
+      site_lan_router.value = "";
+      site_lan_mask.value = "";
+      
+      site_uplink_address.value = "";
+      site_uplink_route.value = "";
+      site_uplink_mask.value = "";
+    }
+  }
+
+  function clear_all()
+  { //Clear entire form
+    var site_address = document.getElementById("site_address");
+    var site_name = document.getElementById("site_name");
+    var name = document.getElementById("name");
+    var billing_address = document.getElementById("billing_address");
+    var billing_name = document.getElementById("billing_name");
+    var telephone = document.getElementById("telephone");
+    var mobile = document.getElementById("mobile");
+    var email = document.getElementById("email");
+    var link = document.getElementById("link");
+    var connected = document.getElementById("connected");
+    var termination = document.getElementById("termination");
+    var site_longitude = document.getElementById("site_longitude");
+    var site_latitude = document.getElementById("site_latitude");
+    var original_tower = document.getElementById("original_tower");
+    var comment = document.getElementById("customer_comment");
+    var site_height = document.getElementById("site_height");
+    var horizontal_distance = document.getElementById("horizontal_distance");
+
+//    original_tower.value = -1;
+//    set_tower(parseInt(original_tower.value)); 
+    site_name.value = "";
+    name.value = "";
+    billing_address.value = "";
+    billing_name.value = "";
+    telephone.value = "";
+    mobile.value = "";
+    email.value = "";
+    link.value = "";
+    connected.value = "";
+    termination.value = "";
+    site_address.value = "";
+    site_longitude.value = "174.5095729763184";
+    site_latitude.value = "-36.97699518840063";
+    comment.value = "";
+    site_height.value = "0";
+    horizontal_distance.innerHTML = "-";
+
+    set_network_entries(null, false);
+  }
+  
+  function networks_callback(network_list) {
+    var distribution_select = document.getElementById('distribution');
+
+    site_subnet_list = network_list;
+    if(network_list != null && network_list.length > 0) {
+      for(var i=0; i<network_list.length; i++){
+        if(network_list[i]['state'] == 'active'){
+          set_network_entries(network_list[i], true)
+          distribution_select.value = network_list[i]['tower'];
+          color_dropdown();
+        }
+      }
+    }
+  }
+
+  function set_siteCallback(data)
+  {
+    var site_address = document.getElementById("site_address");
+    var site_name = document.getElementById("site_name");
+    var name = document.getElementById("name");
+    var billing_address = document.getElementById("billing_address");
+    var billing_name = document.getElementById("billing_name");
+    var telephone = document.getElementById("telephone");
+    var mobile = document.getElementById("mobile");
+    var email = document.getElementById("email");
+    var link = document.getElementById("link");
+    var connected = document.getElementById("connected");
+    var termination = document.getElementById("termination");
+    var site_longitude = document.getElementById("site_longitude");
+    var site_latitude = document.getElementById("site_latitude");
+    var original_tower = document.getElementById("original_tower");
+    var comment = document.getElementById("customer_comment");
+    var site_height = document.getElementById("site_height");
+
+    clear_all();
+    //Process the first of the rows of the customer entries that match the find.
+    //Any other results end up in the 'Results" select.
+    if(data != null && data.length > 0) { 
+      site_name.value = data[0].site_name;
+      name.value = data[0].name;
+      billing_address.value = data[0].billing_address;
+      billing_name.value = data[0].billing_name;
+      telephone.value = data[0].telephone;
+      mobile.value = data[0].mobile;
+      email.value = data[0].email;
+      link.value = data[0].link;
+      connected.value = data[0].connected;
+      termination.value = data[0].termination;
+      site_address.value = data[0].site_address;
+      site_longitude.value = data[0].longitude;
+      site_latitude.value = data[0].latitude;
+      comment.value = data[0].comment;
+      site_height.value = data[0].height;
+//      set_tower(original_tower.value); 
+      wikk_customer_networks.networks(data[0].site_name, networks_callback)
+    }
+    
+    site_coord_manual_change();
+    center_on_site();
+  }
+
+  function set_site_by_customer() {
+    var name = document.getElementById("name");
+    var alt_sites = document.getElementById("alt_sites"); // select for other matches to the find.
+    if( site_name.value != "") {
+     wikk_customer.site_find_by_name(name.value, true, selectList = [alt_sites], local_completion = set_siteCallback);
+    }
+  }
+
+  function set_site_by_address() {
+    var address = document.getElementById("site_address");
+    var alt_sites = document.getElementById("alt_sites"); // select for other matches to the find.
+    if( site_name.value != "") {
+     wikk_customer.site_find_by_site_address(address.value, true, selectList = [alt_sites], local_completion = set_siteCallback);
+    }
+  }  
+
+  function set_site(site_name) {
+    if( site_name != "") {
+      wikk_customer.site_find_by_site_name(site_name.value, true, selectList = [alt_sites], local_completion = set_siteCallback);
+    }
+  }
+
+  function find_by_site() {
+    var site_name = document.getElementById("site_name");
+    var alt_sites = document.getElementById("alt_sites"); // select for other matches to the find.
+    if( site_name.value != "") {
+     wikk_customer.site_find_by_site_name(site_name.value, true, selectList = [alt_sites], local_completion = set_siteCallback);
+    }
+  }
+
+  function parse_args() {
+    var params = wikk_params.getURLParameters();
+    var site_name_param = wikk_params.get_argv('site_name');
+
+    if( site_name_param != null ) {
+      var site_name = document.getElementById("site_name");
+      site_name.value = site_name_param; //select option
+      find_by_site(); //uses search option
+    }
+  }
+
+
+  function dup_site_customer_name() {
+    var customer_name = document.getElementById("name");
+    var billing_name = document.getElementById("billing_name");
+    billing_name.value = customer_name.value;
+  }
+
+  function dup_site_address() {
+    var site_address = document.getElementById("site_address");
+    var billing_address = document.getElementById("billing_address");
+    billing_address.value = site_address.value;
+  }
+
+  function dup_billing_address() {
+    var site_address = document.getElementById("site_address");
+    var billing_address = document.getElementById("billing_address");
+    site_address.value = billing_address.value;
+  }
+  
+  var map;
+  var features = [];
+  var marker1;
+  var featureMarker1;
+  var markers_vector_layer;
+  var tower_marker = null;
+
+  function round_p(n, places) {
+    b = Math.pow(10, places);
+    return Math.round(n * b)/b;
+  }
+
+  function distance_to_tower() {
+    if(tower_marker != null){
+      var horizontal_distance = document.getElementById("horizontal_distance");
+      geo_coord1 = ol.proj.transform(marker1.getCoordinates(), 'EPSG:3857', 'EPSG:4326');
+      geo_coord2 = ol.proj.transform(tower_marker.getCoordinates(), 'EPSG:3857', 'EPSG:4326');
+      p1 = {lat: geo_coord1[1], lng: geo_coord1[0]}
+      p2 = {lat: geo_coord2[1], lng: geo_coord2[0]}
+      window.horizontalDistance = calcDistance(p1, p2);
+      horizontal_distance.innerHTML = round_p(window.horizontalDistance,1);
+    }
+  }
+
+  function set_customer_marker(site_record) {
+    set_site_coord(site_record.latitude, site_record.longitude, site_record.height, site_record.site_address, site_record.name);
+    var coord = ol.proj.transform([parseFloat(site_record.longitude), parseFloat(site_record.latitude)], 'EPSG:4326', 'EPSG:3857'); 
+    marker1.setCoordinates(coord);
+    distance_to_tower();
+  }
+
+  function site_coord_manual_change() {
+    var site_latitude = document.getElementById("site_latitude");
+    var site_longitude = document.getElementById("site_longitude");
+    var site_height = document.getElementById("site_height");
+    var site_address = document.getElementById("site_address");
+    var customer_names = document.getElementById("name");
+    var custom_site = {
+      latitude: site_latitude.value,
+      longitude: site_longitude.value,
+      site_name: '',
+      height: site_height.value,
+      name: customer_names.value,
+      site_address: site_address.value
+    }
+    set_customer_marker(custom_site);
+  }
+
+  function set_site_coord(latitude, longitude, height = null, address = null, name = null) {
+    var site_latitude = document.getElementById("site_latitude");
+    var site_longitude = document.getElementById("site_longitude");
+    var site_height = document.getElementById("site_height");
+    var site_address = document.getElementById("site_address");
+    var customer_names = document.getElementById("name");
+    site_latitude.value = latitude;
+    site_longitude.value = longitude;
+    if(height != null) { site_height.value = height; }
+    if(address != null) { site_address.value = address; }
+    if(name != null) { customer_names.value = name; }
+  }
+
+  function center_on(latitude, longitude){
+    map.getView().setCenter(ol.proj.transform([longitude, latitude], 'EPSG:4326', 'EPSG:3857'));
+  }
+
+  function center_on_site() {
+    var site_latitude = document.getElementById("site_latitude");
+    var site_longitude = document.getElementById("site_longitude");
+    center_on(parseFloat(site_latitude.value), parseFloat(site_longitude.value));
+  }
+
+  function add_marker(location1) {
+    var coord1 = ol.proj.transform(location1, 'EPSG:4326', 'EPSG:3857'); 
+
+    var customer_styleMarker = new ol.style.Style({
+      image: new ol.style.Icon({
+        scale: .7,
+        anchor: [0.5, 1],
+        src: '//raw.githubusercontent.com/jonataswalker/map-utils/master/images/marker.png'
+      })
+    });
+
+    marker1 = new ol.geom.Point(coord1); //Customer
+    featureMarker1 = new ol.Feature(marker1);
+    featureMarker1.setStyle(customer_styleMarker);
+    set_site_coord(location1[1], location1[0]);
+
+    markers_vector_layer = new ol.layer.Vector({
+      source: new ol.source.Vector({
+        features: [featureMarker1]
+      }),
+      style: [customer_styleMarker]
+    });
+  }
+
+  function marker_interaction() {
+    var translate1 = new ol.interaction.Translate({
+      features: new ol.Collection([featureMarker1])
+    });
+    map.addInteraction(translate1);
+
+    translate1.on('translating', function(evt) {
+      geo_coord = ol.proj.transform(marker1.getCoordinates(), 'EPSG:3857', 'EPSG:4326');
+      set_site_coord(geo_coord[1], geo_coord[0]);
+    });
+            
+    map.on('pointermove', function(e) {
+      if (e.dragging) return;
+      var hit = map.hasFeatureAtPixel(map.getEventPixel(e.originalEvent));
+      map.getTargetElement().style.cursor = hit ? 'pointer' : '';
+    });
+  }
+  
+  function create_icon(name, image, location) {
+    var iconFeature = new ol.Feature({
+      geometry: new ol.geom.Point(ol.proj.transform(location, 'EPSG:4326', 'EPSG:3857')),
+      name: name,
+    });
+    var iconStyle = new ol.style.Style({
+      image: new ol.style.Icon( /** @type {olx.style.IconOptions} */ ({
+        anchor: [0.5, 1],
+        anchorXUnits: 'fraction',
+        anchorYUnits: 'fraction',
+        opacity: 0.75,
+        src: image
+      }))
+    });
+    iconFeature.setStyle(iconStyle);
+    iconFeature.on('change', function() {
+     console.log(name + ' Moved To:' + ol.proj.transform(this.getGeometry().getCoordinates(), 'EPSG:3857', 'EPSG:4326'));
+    }, iconFeature);
+
+    window.features.push(iconFeature);
+    return iconFeature;
+  }
+
+  function map_init() {
+    var vectorSource = new ol.source.Vector({
+      features: window.features
+    });
+
+    var vectorLayer = new ol.layer.Vector({
+      source: vectorSource
+    });
+
+    map = new ol.Map({
+      target: 'map-canvas',
+      //interactions: ol.interaction.defaults().extend([new app.Drag()]),
+      layers: [
+        new ol.layer.Tile({
+          source: new ol.source.XYZ({
+          url: "https://basemaps.linz.govt.nz/v1/tiles/aerial/EPSG:3857/{z}/{x}/{y}.png?api=d01egend5f80q7hp0yp88nn244w"
+          })
+        }),
+        new ol.layer.Tile({
+          source: new ol.source.XYZ({
+          url: 'http://tiles-a.data-cdn.linz.govt.nz/services;key=f8438294f501437698e278e3d57740ec/tiles/v4/set=4769/EPSG:3857/{z}/{x}/{y}.png'
+          })
+        }),
+        vectorLayer, 
+        markers_vector_layer
+      ],
+      view: new ol.View({
+        center: ol.proj.transform([174.4915168, -36.98656758], 'EPSG:4326', 'EPSG:3857'),
+        zoom: 14
+      }),
+      attributions: [{
+        html: ['<a href="//data.linz.govt.nz">LINZ. CC-BY 3.0</a>']
+      }]
+    });
+  }
+
+  function add_optgroup_label(list, label) {
+    var optgroup = document.createElement("OPTGROUP");
+    optgroup.label = label
+    optgroup.disabled = true;
+    list.appendChild(optgroup);
+  }
+
+  function draw_towers(tower_site_list) {
+    for(var s in tower_site_list) {
+      window.tower_locations[s] = create_icon(tower_site_list[s].site_name, '/wikk_icons/wifi64-blue.png', [ parseFloat(tower_site_list[s].longitude), parseFloat(tower_site_list[s].latitude) ] );
+    }
+  }
+  
+  function tower_completion(tower_site_list, select_id_array) {
+    for(var s in select_id_array) {
+      for(var o in select_id_array[s].options) {
+        select_id_array[s].options[o].value = select_id_array[s].options[o].text; //Use the site_name as the key.
+      }
+    }
+  }
+
+  function tower_completion_handler(tower_site_list, select_id_array) {
+    tower_completion(tower_site_list, select_id_array);
+    draw_towers(tower_site_list);
+    map_init();
+    marker_interaction();
+    parse_args();
+  }
+
+  function setup_site_select_dropdowns() {
+    var distribution_select = document.getElementById('distribution');
+    
+    add_optgroup_label(distribution_select, '--- Towers --- ')    
+    wikk_distribution.get_site_list( [ distribution_select ], true, tower_completion_handler );
+  }
+
+  function init() {
+    wikk_web_auth.logged_in(true, "/admin/customer.html", "login_span", null);
+    add_marker([174.48292440317474, -36.99021157393148]);
+    setup_site_select_dropdowns();
+  }
+  
+</script>
+
+
+  <style>
+    html, body, #map-canvas {
+      height: 100%;
+      margin: 0px;
+      padding: 0px
+    }
+  </style>
+  <style type="text/css">
+    option.inactive { background-color:red; color:white; }
+  </style>
+</head>
+<body onload="init();">
+	  <input type="hidden" id="original_tower" name="original_tower" value="0">
+	  <table border="2" cellpadding="1">
+  	  <tr>
+  	    <th>Wikk Ref</th>
+  	    <td >
+        	<form id="customer" method="get" action="">
+  	         <input type="search" results="15" id="site_name" list="sites" name="customer.site_name">
+  	         <input type="submit" onclick="find_by_site(); return false;" name="submit" value="Find">
+  	         <datalist id="sites" name="sites">
+  	         </datalist>
+  	      </form>
+  	    </td>
+  	    <td> 
+        	<form id="customer2" method="get" action="">
+  	        <input type="submit" name="submit" value="New" onclick="create_user(); return false;">
+  	        <input type="submit" name="submit" value="Save" onclick="save_all(); return false;">
+  	        <input type="submit" onclick="clear_all(); return false;" name="submit" value="Clear">
+  	        &nbsp;
+    	      <span id="login_span"></span>
+  	        &nbsp;
+   	        <select id="alt_sites" name="alt_sites" onchange="set_site(this.value); return false;">
+   	        </select>
+  	      </form>
+  	    </td>
+  	    <td width="600" height="800" rowspan="14">
+  	      <div id="map-canvas"></div>
+  	    </td>
+  	  </tr>
+  	  <tr>
+  	    <th>Contact Name</th>
+  	    <td colspan="2">
+  	      <table border="0">
+  	        <tr>
+  	          <td>
+        	      <form id="customer3" method="get" action="">
+              	  <input size="64" type="search" results="15" id="name" name="customer.name" list="customer_names" >
+        	        <input type="submit" name="submit" value="Find_Customer" onclick="set_site_by_customer(); return false;">
+                  <datalist id="customer_names" name="customer_names">
+                  </datalist>
+        	      </form>
+        	    </td>
+              <td><img src="/images/upload.png" onclick="save_entry('name'); return false;"></td>
+            </tr>
+          </table>
+        </td>
+  	  </tr>
+  	  <tr>
+  	    <th>Site Address</th>
+  	    <td colspan="2">
+      	  <table border="0">
+      	    <tr>
+      	      <td rowspan="3">
+        	      <form id="customer4" method="get" action="">
+              	  <textarea id="site_address" name="customer.site_address" rows="5" cols="64"> </textarea>
+            	  </form>
+            	</td>
+        	    <td><img src="/images/search.png" onclick="set_site_by_address(); return false;"></td>
+      	    </tr>
+          	<tr><td><img src="/images/upload.png"  onclick="save_entry(['site_address','site_latitude','site_longitude']); return false;"></td></tr>
+      	    <tr><td><img src="/images/dup_up.png" onclick="dup_billing_address();"></td></tr>
+      	  </table>
+        </td>
+  	  </tr>
+  	  <tr>
+  	    <td><input type="button" onclick="codeAddress(); return false;" value="Auto Fill"></td>
+  	    <td><b>Site Lat </b><input type="text" id="site_latitude" name="customer.latitude" onchange="site_coord_manual_change();" width="16"></td>
+  	    <td><b>Site Long</b><input type="text" id="site_longitude" name="customer.longitude" onchange="site_coord_manual_change();" width="16">
+    	    <input type="button" onclick="center_on_site(); return false" value="Centre">
+          <img src="/images/upload.png" onclick="save_entry(['site_latitude','site_longitude']); return false;">
+  	    </td>
+  	  </tr>
+  	  <tr>
+  	    <td>&nbsp;</td>
+        <td><b>Antenna Height</b><input type="text" id="site_height" name="customer.site_height" width="16"></td>
+        <td><b>Distance</b>&nbsp;<span id=horizontal_distance>-</span>m</td> 	      
+	    </tr>
+  	  <tr>
+  	    <th>Site Comment</th>
+  	    <td colspan="2">
+  	      <table border="0">
+      	    <tr>
+      	      <td><textarea id="customer_comment" name="customer.comment" rows="5" cols="64"> </textarea></td>
+              <td><img src="/images/upload.png"  onclick="save_entry('customer_comment'); return false;"></td>
+            </tr>
+          </table>
+        </td>
+  	  </tr>
+  	  <tr>
+  	    <th>Billing Name</th>
+  	    <td colspan="2">
+  	      <table border="0">
+  	        <tr>
+  	          <td><input size="64" type="text" id="billing_name" name="customer.billing_name"></td>
+              <td><img src="/images/dup_down.png" onclick="dup_site_customer_name()"></td>
+              <td><img src="/images/upload.png" onclick="save_entry('billing_name'); return false;"></td>
+            </tr>
+          </table>
+        </td>
+  	  </tr>
+    	<tr>
+    	  <th>Billing Addr</th>
+    	  <td colspan="2">
+      	  <table border="0">
+      	    <tr>
+      	      <td rowspan="2">
+    	          <textarea id="billing_address" name="customer.billing_address" rows="5" cols="64"> </textarea>
+    	        </td>
+  	          <td><img src="/images/upload.png" onclick="save_entry('billing_address'); return false;"></td>
+  	        </tr>
+            <tr><td><img src="/images/dup_down.png" onclick="dup_site_address();"></td></tr>
+      	  </table>
+    	  </td>
+    	</tr>
+  	  <tr>
+  	    <th>Phone</th>
+	      <td colspan="2">
+	        <table border="0">
+      	    <tr>
+  	          <td><input size="64" type="text" id="telephone" name="customer.telephone"></td>
+              <td><img src="/images/upload.png" onclick="save_entry('telephone'); return false;"></td>
+            </tr>
+          </table>
+        </td>
+  	  </tr>
+  	  <tr>
+  	    <th>Cell</th>
+  	    <td colspan="2">
+	        <table border="0">
+      	    <tr>
+  	          <td><input size="64" type="text" id="mobile" name="customer.mobile"></td>
+              <td><img src="/images/upload.png" onclick="save_entry('mobile'); return false;"></td>
+            </tr>
+          </table>
+        </td>
+  	  </tr>
+  	  <tr>
+  	    <th>email</th>
+  	    <td colspan="2">
+  	      <table border="0">
+      	    <tr>
+	            <td><input size="64" type="text" id="email" name="customer.email"></td>
+              <td><img src="/images/upload.png" onclick="save_entry('email'); return false;"></td>
+            </tr>
+          </table>
+        </td>
+  	  </tr>
+  	  <tr>
+  	    <td><select id="link" name="customer.link">
+                <option value="0" class="inactive">Inactive</option>
+                <option value="5">Line 5</option>
+                <option value="6">Line 6</option>
+                <option value="7">Line 7</option>
+  	          </select>
+	      </td>
+	      <td><b>Start </b><input type="date" id='connected' name="customer.connected"></td>
+	      <td><b>Term  </b><input type="date" id='termination' name="customer.termination">
+	          &nbsp; <img src="/images/upload.png"  onclick="save_entry(['link','connected','termination']); return false;">
+	      </td>
+  	  </tr>
+  	  <!-- Pull Towers from ntm.distribution Table -->
+  	  <tr><th>Distribution</th>
+  	      <td colspan="2">
+  	        <select id='distribution' name="customer.customer_distrbution.distribution.name" onchange="set_tower(this);">
+                <option value=-1>None</option>
+  	          </select>
+  	          <input type="button" onclick="revert_tower(); return false;" value="Revert to Original Tower">
+        	    <!-- Allocate IP from ntm.subnets Table -->
+  	          <input type="submit" name="submit" value="Allocate IP" onclick="allocate_ip(); return false;">
+  	          <img src="/images/upload.png"  onclick="save_entry('distribution'); return false;"  >
+  	      </td>
+  	  </tr>
+  	  <!-- Pull IP from ntm.subnets Table -->
+  	  <tr><th>IP<br><input type="submit" name="submit" value="Edit Host Entries" onclick="edit_host_entries(); return false;"></th>
+  	    <td colspan="2">
+  	        <table border=1>
+  	          <tr><th>From</th><th>To</th><th>Router</th><th>Mask</th></tr>
+  	          <tr>
+  	              <td><input type="text" id='site_lan_first_address' readonly></td>
+  	              <td><input type="text" id='site_lan_last_address' readonly></td>
+  	              <td><input type="text" id='site_lan_router' readonly></td>
+  	              <td><input type="text" id='site_lan_mask' readonly></td>
+  	            </tr>
+  	          <tr><th>Uplink</th><td>&nbsp;</td><th>Gateway</th><th>Mask</th></tr>
+  	          <tr>
+  	            <td><input type="text" id='site_uplink_address' readonly></td>
+  	            <td>&nbsp;</td>
+  	            <td><input type="text" id='site_uplink_route' readonly></td>
+  	            <td><input type="text" id='site_uplink_mask' readonly></td></tr>
+	          </table>
+ 	      </td>
+  	  </tr>
+  	</table>
+</body>
+</html>

@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=1500, initial-scale=1.0, user-scalable=yes">
+<meta charset="utf-8">
+<title>Customer</title>
+<script src="/js/RGraph/libraries/RGraph.common.core.js" ></script>
+<script src="/js/RGraph/libraries/RGraph.common.dynamic.js" ></script>
+<script src="/js/RGraph/libraries/RGraph.common.effects.js" ></script>
+<script src="/js/RGraph/libraries/RGraph.gauge.js" ></script>
+<script src="/js/jquery.min.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp"></script>
+<script src="/js/wikk_params.js"></script>
+<script src="/js/wikk_web_auth-min.js"></script>
+<script src="/js/customer_comms.js"></script>
+<script src="/js/distribution_comms.js"></script>
+<script>
+var map;
+var geocoder;
+var site_marker;
+
+function parse_args() {
+  wikk_params.getURLParameters();
+  var site_name = wikk_params.get_argv('site_name');
+  if( site_name != null ) {
+    var site_name_field = document.getElementById("site_name");
+    site_name_field.value = site_name; //select option
+    find_by_site(); //uses select option
+  }
+}
+
+function set_siteCallback(data)
+{
+  var site_address = document.getElementById("site_address");
+  var site_name = document.getElementById("site_name");
+  var name = document.getElementById("name");
+  var billing_address = document.getElementById("billing_address");
+  var billing_name = document.getElementById("billing_name");
+  var telephone = document.getElementById("telephone");
+  var mobile = document.getElementById("mobile");
+  var email = document.getElementById("email");
+  var link = document.getElementById("link");
+  var connected = document.getElementById("connected");
+  var termination = document.getElementById("termination");
+  var site_longitude = document.getElementById("site_longitude");
+  var site_latitude = document.getElementById("site_latitude");
+  var original_tower = document.getElementById("original_tower");
+  var comment = document.getElementById("customer_comment");
+
+  if(data.customer != null && data.customer.length > 0) {
+    site_name.value = data.customer[0].site_name;
+    name.value = data.customer[0].name;
+    billing_address.value = data.customer[0].billing_address;
+    billing_name.value = data.customer[0].billing_name;
+    telephone.value = data.customer[0].telephone;
+    mobile.value = data.customer[0].mobile;
+    email.value = data.customer[0].email;
+    link.value = data.customer[0].link;
+    connected.value = data.customer[0].connected;
+    termination.value = data.customer[0].termination;
+    site_address.value = data.customer[0].site_address;
+    site_longitude.value = data.customer[0].longitude;
+    site_latitude.value = data.customer[0].latitude;
+    comment.value = data.customer[0].comment;
+
+    if(data.customer[0].customer_distribution != null && data.customer[0].customer_distribution.length > 0) {
+      distribution_id = find_tower_by_distribution_id(data.customer[0].customer_distribution[0].distribution_id);
+      if(distribution_id != null) {
+        original_tower.value = distribution_id;
+      } else {
+        original_tower.value = -1
+      }
+    }
+    else {
+      original_tower.value = -1;
+    }
+    set_tower(original_tower.value);
+
+
+    if (site_latitude.value == "" || site_longitude.value == "") {
+       if(site_address.value != "") {
+         call_back_context_codeAddress(site_address.value,site_name.value);
+       }
+       else {
+         var markerLatlng = new google.maps.LatLng(-36.97699518840063, 174.5095729763184);
+         set_site_marker(markerLatlng, site_name.value);
+       }
+    }
+    else {
+      var markerLatlng = new google.maps.LatLng(site_latitude.value, site_longitude.value);
+      set_site_marker(markerLatlng, site_name.value);
+    }
+    set_site_select(data.customer);
+
+    //if(data.customer[0].customer_dns_subnet[0] != null) {
+      //set_network_entries(data.customer[0].customer_dns_subnet[0].dns_subnet, 0);
+    //}
+    set_network_entries([], 0);
+    for(var i=0; i<data.customer[0].customer_dns_subnet.length; i++) {
+      if(data.customer[0].customer_dns_subnet[i].dns_subnet.length != 0) {
+        set_network_entries(data.customer[0].customer_dns_subnet[i].dns_subnet, 0);
+      }
+    }
+
+  }
+  else {
+    clear_all();
+  }
+
+}
+
+function calc_uplink(v) {
+  switch(window.tower_locations[window.tower].distribution_id) {
+  case "2": case "5": case "6": case "3": case "4": case "8": case "9": case "15": case "17": case "20": case "21": case "23": //lk1,lk2,beach,barn,lk4,beach2,oceanview2,oceanview4
+    return [v + 1,1];
+  case "1": //legacy teahuahu network.
+    uplink = (v - 8) * 4 + 1;
+    return [uplink,uplink+1];
+  case "7": case "18": case "19":
+    return [0,0];
+  default:
+    return [v - 7,1];
+  }
+}
+
+function ntoa(num) {
+  var a = [];
+  for(var i = 3; i >= 0; i--) {
+    a[i] = ( num & 0xFF ).toString();
+    num = num >> 8;
+  }
+  return a.join('.');
+}
+
+function mask_from_subnet_size(subnet_size) {
+  var themask = (0xffffffff & ~(subnet_size-1));
+  return themask;
+}
+
+function set_network_entries(subnets, index) {
+  var site_lan_first_address = document.getElementById("site_lan_first_address");
+  var site_lan_last_address = document.getElementById("site_lan_last_address");
+  var site_lan_router = document.getElementById("site_lan_router");
+  var site_lan_mask = document.getElementById("site_lan_mask");
+  var site_uplink_address = document.getElementById("site_uplink_address");
+  var site_uplink_route = document.getElementById("site_uplink_route");
+  var site_uplink_mask = document.getElementById("site_uplink_mask");
+
+  if(subnets != null && subnets.length > 0 && subnets[index].dns_network != null) {
+    var base = parseInt(subnets[index].dns_network[0].network) + parseInt(subnets[index].dns_network[0].subnet_size) * parseInt(subnets[index].subnet);
+
+    site_lan_first_address.value = ntoa(base+ parseInt(subnets[index].dhcp_start));
+    site_lan_last_address.value = ntoa(base + parseInt(subnets[index].dhcp_end) );
+    site_lan_router.value = ntoa( base + parseInt(subnets[index].gateway) );
+    site_lan_mask.value = ntoa( mask_from_subnet_size(parseInt(subnets[index].dns_network[0].subnet_size)) );
+
+    uplink = calc_uplink(parseInt(subnets[index].subnet));
+    area = parseInt(ntoa(base).split('.')[1]);
+    site_uplink_address.value = "192.168." + (area + 200).toString() + "." + uplink[0].toString();
+    site_uplink_route.value = "192.168." + (area + 200).toString() + "." + uplink[1].toString();
+    site_uplink_mask.value = "255.255.255." + uplink[2].toString();
+  }
+  else {
+    site_lan_first_address.value = "";
+    site_lan_last_address.value = "";
+    site_lan_router.value = "";
+    site_lan_mask.value = "";
+    site_uplink_address.value = "";
+    site_uplink_route.value = "";
+    site_uplink_mask.value = "";
+  }
+}
+
+function clear_all()
+{
+  var site_address = document.getElementById("site_address");
+  var site_name = document.getElementById("site_name");
+  var name = document.getElementById("name");
+  var billing_address = document.getElementById("billing_address");
+  var billing_name = document.getElementById("billing_name");
+  var telephone = document.getElementById("telephone");
+  var mobile = document.getElementById("mobile");
+  var email = document.getElementById("email");
+  var link = document.getElementById("link");
+  var connected = document.getElementById("connected");
+  var termination = document.getElementById("termination");
+  var site_longitude = document.getElementById("site_longitude");
+  var site_latitude = document.getElementById("site_latitude");
+  var original_tower = document.getElementById("original_tower");
+  var comment = document.getElementById("customer_comment");
+
+  original_tower.value = 0;
+  set_tower(original_tower.value);
+  site_name.value = "";
+  name.value = "";
+  billing_address.value = "";
+  billing_name.value = "";
+  telephone.value = "";
+  mobile.value = "";
+  email.value = "";
+  link.value = "";
+  connected.value = "";
+  termination.value = "";
+  site_address.value = "";
+  site_longitude.value = "";
+  site_latitude.value = "";
+  comment.value = "";
+
+  var markerLatlng = new google.maps.LatLng(-36.97699518840063, 174.5095729763184);
+  set_site_marker(markerLatlng, site_name.value);
+
+  set_network_entries([], 0);
+}
+
+function find_by_site() {
+  var site_name = document.getElementById("site_name");
+  //setTimeout( function () {RGraph.AJAX.getJSON('/ruby/customer.rbx?site_name='+site_name.value, set_siteCallback);} , 0);
+  if( site_name.value != "") {
+   RGraph.AJAX.getJSON('/ruby/customer.rbx?site_name='+site_name.value, set_siteCallback);
+  }
+}
+
+function set_site_by_customer() {
+  var name = document.getElementById("name");
+  if( name.value != "") {
+    RGraph.AJAX.getJSON('/ruby/customer.rbx?name='+name.value, set_siteCallback);
+  }
+}
+
+function set_site_by_address() {
+  var address = document.getElementById("site_address");
+  if( address.value != "") {
+    RGraph.AJAX.getJSON('/ruby/customer.rbx?site_address='+address.value, set_siteCallback);
+  }
+}
+
+function save_all() { alert('I don\'t actually do anything'); }
+function create_user( ) {
+  if (confirm("Don't push ok, unless you really mean it")) {
+      alert( "You pressed OK!" );
+  } else {
+      alert( "You pressed Cancel!" );
+  }
+  alert('Sorry, not going to do it.');
+}
+function allocate_ip() { alert('Not implemented'); }
+function edit_host_entries() { alert('A new feature, coming soon'); }
+function save_entry(field_name) {
+  var site_name = document.getElementById("site_name");
+  if(Object.prototype.toString.call(field_name) === '[object Array]')
+  { var s = "\n"
+    for(var i=0; i<field_name.length; i++){
+      var e = document.getElementById(field_name[i]);
+      s += e.name + "\n";
+    }
+    alert('Wouldn\'t it be nice if I really saved the field' + s + "For: " + site_name.value);
+  }
+  else {
+    var e = document.getElementById(field_name);
+    alert("Wouldn't it be nice if I really saved the field\n" + e.name + "\n For: " + site_name.value);
+  }
+}
+
+</script>
+
+
+<script>
+  //setup the customer details
+
+  // Add a marker to the map and push to the array.
+  function add_Tower_markers() {
+    var image_blue = '/wikk_icons/wifi64.png';
+    var image_red = '/wikk_icons/wifi64-red.png';
+    for(var i=0; i < window.tower_locations.length; i++) {
+      if(window.tower_locations[i].active == "1") {
+        var location = new google.maps.LatLng(window.tower_locations[i].latitude, window.tower_locations[i].longitude);
+        var marker = new google.maps.Marker({
+          position: location,
+          map: window.map,
+          title: window.tower_locations[i].site_name,
+          icon: image_blue
+        });
+        //put the marker on the end of the definition for the marker in the tower_locations array.
+        window.tower_locations[i].marker = marker;
+      }
+    }
+  }
+
+  var last_tower = -1;
+  var image_blue = '/wikk_icons/wifi64.png';
+  var image_red = '/wikk_icons/wifi64-red.png';
+  function set_tower(t) {
+    var current_tower = document.getElementById('distribution');
+
+    if(last_tower != -1) {
+      //if(window.tower_locations[current_tower.value].active == "1") {
+        window.tower_locations[last_tower].marker.setIcon(image_blue);
+      //}
+    }
+
+    last_tower = t;
+    current_tower.value = t; //Changes selection option, if we didn't get here from a selection.
+    if(t != -1 && window.tower_locations[t].active == "1") {
+        window.tower_locations[t].marker.setIcon(image_red);
+    }
+  }
+
+  function revert_tower() {
+    var original_tower = document.getElementById("original_tower");
+    set_tower(original_tower.value);
+  }
+
+  function set_site_location(location) {
+    var site_latitude = document.getElementById("site_latitude");
+    var site_longitude = document.getElementById("site_longitude");
+
+    site_latitude.value = location.lat();
+    site_longitude.value = location.lng();
+  }
+
+  function set_site_location_and_address(location) {
+    var site_latitude = document.getElementById("site_latitude");
+    var site_longitude = document.getElementById("site_longitude");
+
+    site_latitude.value = location.lat();
+    site_longitude.value = location.lng();
+    find_address(location);
+  }
+
+  function placeMarker(location) {
+    var image = '/wikk_icons/wifi64.png';
+    var marker = new google.maps.Marker({
+        position: location,
+        map: window.map,
+        draggable:true,
+        icon: image
+    });
+  }
+
+  function find_address(location) {
+    var site_address = document.getElementById("site_address");
+    window.geocoder.geocode({'latLng': location}, function(results, status) {
+      if (status == google.maps.GeocoderStatus.OK) {
+        //we'll do cool crap here
+        site_address.value = results[0].formatted_address;
+    	}
+      else
+      {
+        alert('no address found');
+      }
+    });
+  }
+
+  function initialize_map() {
+    geocoder = new google.maps.Geocoder();
+    var image = '/wikk_icons/wifi64.png';
+    var myLatlng = new google.maps.LatLng(-36.980864223044456,174.48968030642095);
+    var mapOptions = {
+      zoom: 14,
+      center: myLatlng,
+      mapTypeId: google.maps.MapTypeId.SATELLITE
+    }
+    map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+  }
+
+  function center() {
+    var site_latitude = document.getElementById("site_latitude").value;
+    var site_longitude = document.getElementById("site_longitude").value;
+    var markerLatlng = new google.maps.LatLng(site_latitude, site_longitude);
+    window.map.setCenter(markerLatlng);
+  }
+
+  function set_site_marker(location, site_name) {
+    if(window.site_marker != null)
+    {
+      window.site_marker.setPosition(location);
+      window.site_marker.title = site_name;
+      set_site_location(location);
+    }
+    else
+    {
+      place_site_marker(location, site_name);
+    }
+  }
+
+  function place_site_marker(location, site_name) {
+    window.site_marker = new google.maps.Marker({
+        map: window.map,
+        position: location,
+        draggable:true,
+        title: site_name
+    });
+    set_site_location(location);
+    google.maps.event.addListener(window.site_marker, 'dragend', function(event) {
+      set_site_location_and_address(event.latLng);
+      });
+  }
+
+  function codeAddress() {
+    var address = document.getElementById("site_address");
+    var site_name = document.getElementById("site_name");
+    call_back_context_codeAddress(address.value, site_name.value)
+  }
+
+  function call_back_context_codeAddress(address, site_name) {
+    window.geocoder.geocode( { 'address': address}, function(results, status) {
+      if (status == google.maps.GeocoderStatus.OK) {
+        set_site_marker(results[0].geometry.location, site_name)
+      } else {
+        alert('Geocode was not successful for the following reason: ' + status);
+      }
+    });
+    return false;
+  }
+
+  function set_site_select(sites) {
+    var selectList = document.getElementById("sites");
+    var selectList2 = document.getElementById("customer_names");
+    var selectList3 = document.getElementById("alt_sites");
+
+    for(var i=selectList.options.length - 1; i>=0;  i--){
+      var parent = selectList.options[i].parentNode;
+      parent.removeChild( selectList.options[i] );
+    }
+
+    for(var i=selectList2.options.length - 1; i>=0;  i--){
+      var parent = selectList2.options[i].parentNode;
+      parent.removeChild( selectList2.options[i] );
+    }
+
+    for(var i=selectList3.options.length - 1; i>=0;  i--){
+      var parent = selectList3.options[i].parentNode;
+      parent.removeChild( selectList3.options[i] );
+    }
+
+    {
+      var option = document.createElement("option");
+      option.value = "";
+      option.text = sites.length.toString() + " Results";
+      selectList3.appendChild(option);
+    }
+
+    for(var i=0; i<sites.length;i++)
+    {
+      var option1 = document.createElement("option");
+      option1.value = sites[i].site_name;
+      option1.text = sites[i].name;
+      selectList.appendChild(option1);
+
+      var option2 = document.createElement("option");
+      option2.value = sites[i].name;
+      option2.text = sites[i].site_name;
+      selectList2.appendChild(option2);
+
+      var option3 = document.createElement("option");
+      option3.value = sites[i].site_name;
+      option3.text = sites[i].site_name + " " + sites[i].name;
+      selectList3.appendChild(option3);
+    }
+  }
+
+  function set_site(site) {
+    RGraph.AJAX.getJSON('/ruby/customer.rbx?site_name='+site, set_siteCallback);
+  }
+
+  function dup_billing_address() {
+    var site_address = document.getElementById("site_address");
+    var billing_address = document.getElementById("billing_address");
+    site_address.value = billing_address.value;
+  }
+
+  function dup_site_address() {
+    var site_address = document.getElementById("site_address");
+    var billing_address = document.getElementById("billing_address");
+    billing_address.value = site_address.value;
+  }
+
+  function dup_site_customer_name() {
+    var customer_name = document.getElementById("name");
+    var billing_name = document.getElementById("billing_name");
+    billing_name.value = customer_name.value;
+  }
+
+  function tower_completion() {
+    add_Tower_markers();
+    parse_args();
+  }
+
+  function init() {
+    wikk_web_auth.logged_in(true, "/admin/customer_google.html", "login_span", null)
+    wikk_distribution.get_site_list( [ document.getElementById('distribution') ], true, tower_completion );
+  }
+
+  google.maps.event.addDomListener(window, 'load', initialize_map);
+
+</script>
+
+
+<style>
+  html, body, #map-canvas {
+    height: 100%;
+    margin: 0px;
+    padding: 0px
+  }
+</style>
+<style type="text/css">
+  option.inactive { background-color:red; color:white; }
+</style>
+
+</head>
+<body onload="init();">
+	  <input type="hidden" id="original_tower" name="original_tower" value="0">
+	  <table border="2" cellpadding="1">
+  	  <tr>
+  	    <th>Wikk Ref</th>
+  	    <td >
+        	<form id="customer" method="get" action="">
+  	         <input type="search" results="15" id="site_name" list="sites" name="customer.site_name">
+  	         <input type="submit" onclick="find_by_site(); return false;" name="submit" value="Find">
+  	         <datalist id="sites" name="sites">
+  	         </datalist>
+  	      </form>
+  	    </td>
+  	    <td>
+        	<form id="customer2" method="get" action="">
+  	        <input type="submit" name="submit" value="New" onclick="create_user(); return false;">
+  	        <input type="submit" name="submit" value="Save" onclick="save_all(); return false;">
+  	        <input type="submit" onclick="clear_all(); return false;" name="submit" value="Clear">
+  	        &nbsp;
+    	      <span id="login_span"></span>
+  	        &nbsp;
+   	        <select id="alt_sites" name="alt_sites" onchange="set_site(this.value); return false;">
+   	        </select>
+  	      </form>
+  	    </td>
+  	    <td width="600" height="600" rowspan="13">
+  	      <div id="map-canvas"></div>
+  	    </td>
+  	  </tr>
+  	  <tr>
+  	    <th>Contact Name</th>
+  	    <td colspan="2">
+  	      <table border="0">
+  	        <tr>
+  	          <td>
+        	      <form id="customer3" method="get" action="">
+              	  <input size="64" type="search" results="15" id="name" name="customer.name" list="customer_names" >
+        	        <input type="submit" name="submit" value="Find_Customer" onclick="set_site_by_customer(); return false;">
+                  <datalist id="customer_names" name="customer_names">
+                  </datalist>
+        	      </form>
+        	    </td>
+              <td><img src="/images/upload.png" onclick="save_entry('name'); return false;"></td>
+            </tr>
+          </table>
+        </td>
+  	  </tr>
+  	  <tr>
+  	    <th>Site Address</th>
+  	    <td colspan="2">
+      	  <table border="0">
+      	    <tr>
+      	      <td rowspan="3">
+        	      <form id="customer4" method="get" action="">
+              	  <textarea id="site_address" name="customer.site_address" rows="5" cols="64"> </textarea>
+            	  </form>
+            	</td>
+        	    <td><img src="/images/search.png" onclick="set_site_by_address(); return false;"></td>
+      	    </tr>
+          	<tr><td><img src="/images/upload.png"  onclick="save_entry(['site_address','site_latitude','site_longitude']); return false;"></td></tr>
+      	    <tr><td><img src="/images/dup_up.png" onclick="dup_billing_address();"></td></tr>
+      	  </table>
+        </td>
+  	  </tr>
+  	  <tr>
+  	    <td><input type="button" onclick="codeAddress(); return false;" value="Auto Fill"></td>
+  	    <td><b>Site Lat </b><input type="text" id="site_latitude" name="customer.latitude"></td>
+  	    <td><b>Site Long</b><input type="text" id="site_longitude" name="customer.longitude">
+  	      <input type="button" onclick="center(); return false" value="Centre">
+          <img src="/images/upload.png" onclick="save_entry(['site_latitude','site_longitude']); return false;">
+  	    </td>
+  	  </tr>
+  	  <tr>
+  	    <th>Site Comment</th>
+  	    <td colspan="2">
+  	      <table border="0">
+      	    <tr>
+      	      <td><textarea id="customer_comment" name="customer.comment" rows="5" cols="64"> </textarea></td>
+              <td><img src="/images/upload.png"  onclick="save_entry('customer_comment'); return false;"></td>
+            </tr>
+          </table>
+        </td>
+  	  </tr>
+  	  <tr>
+  	    <th>Billing Name</th>
+  	    <td colspan="2">
+  	      <table border="0">
+  	        <tr>
+  	          <td><input size="64" type="text" id="billing_name" name="customer.billing_name"></td>
+              <td><img src="/images/dup_down.png" onclick="dup_site_customer_name()"></td>
+              <td><img src="/images/upload.png" onclick="save_entry('billing_name'); return false;"></td>
+            </tr>
+          </table>
+        </td>
+  	  </tr>
+    	<tr>
+    	  <th>Billing Addr</th>
+    	  <td colspan="2">
+      	  <table border="0">
+      	    <tr>
+      	      <td rowspan="2">
+    	          <textarea id="billing_address" name="customer.billing_address" rows="5" cols="64"> </textarea>
+    	        </td>
+  	          <td><img src="/images/upload.png" onclick="save_entry('billing_address'); return false;"></td>
+  	        </tr>
+            <tr><td><img src="/images/dup_down.png" onclick="dup_site_address();"></td></tr>
+      	  </table>
+    	  </td>
+    	</tr>
+  	  <tr>
+  	    <th>Phone</th>
+	      <td colspan="2">
+	        <table border="0">
+      	    <tr>
+  	          <td><input size="64" type="text" id="telephone" name="customer.telephone"></td>
+              <td><img src="/images/upload.png" onclick="save_entry('telephone'); return false;"></td>
+            </tr>
+          </table>
+        </td>
+  	  </tr>
+  	  <tr>
+  	    <th>Cell</th>
+  	    <td colspan="2">
+	        <table border="0">
+      	    <tr>
+  	          <td><input size="64" type="text" id="mobile" name="customer.mobile"></td>
+              <td><img src="/images/upload.png" onclick="save_entry('mobile'); return false;"></td>
+            </tr>
+          </table>
+        </td>
+  	  </tr>
+  	  <tr>
+  	    <th>email</th>
+  	    <td colspan="2">
+  	      <table border="0">
+      	    <tr>
+	            <td><input size="64" type="text" id="email" name="customer.email"></td>
+              <td><img src="/images/upload.png" onclick="save_entry('email'); return false;"></td>
+            </tr>
+          </table>
+        </td>
+  	  </tr>
+  	  <tr>
+  	    <td><select id="link" name="customer.link">
+                <option value="0" class="inactive">Inactive</option>
+                <option value="4">Line 4</option>
+                <option value="5">Line 5</option>
+                <option value="6">Line 6</option>
+  	          </select>
+	      </td>
+	      <td><b>Start </b><input type="date" id='connected' name="customer.connected"></td>
+	      <td><b>Term  </b><input type="date" id='termination' name="customer.termination">
+	          &nbsp; <img src="/images/upload.png"  onclick="save_entry(['link','connected','termination']); return false;">
+	      </td>
+  	  </tr>
+  	  <!-- Pull Towers from ntm.distribution Table -->
+  	  <tr><th>Distribution</th>
+  	      <td colspan="2">
+  	        <select id='distribution' name="customer.customer_distrbution.distribution.name" onchange="set_tower(this.value);">
+                <option value=-1>None</option>
+  	          </select>
+  	          <input type="button" onclick="revert_tower(); return false;" value="Revert to Original Tower">
+        	    <!-- Allocate IP from ntm.subnets Table -->
+  	          <input type="submit" name="submit" value="Allocate IP" onclick="allocate_ip(); return false;">
+  	          <img src="/images/upload.png"  onclick="save_entry('distribution'); return false;"  >
+  	      </td>
+  	  </tr>
+  	  <!-- Pull IP from ntm.subnets Table -->
+  	  <tr><th>IP<br><input type="submit" name="submit" value="Edit Host Entries" onclick="edit_host_entries(); return false;"></th>
+  	    <td colspan="2">
+  	        <table border=1>
+  	          <tr><th>From</th><th>To</th><th>Router</th><th>Mask</th></tr>
+  	          <tr>
+  	              <td><input type="text" id='site_lan_first_address' readonly></td>
+  	              <td><input type="text" id='site_lan_last_address' readonly></td>
+  	              <td><input type="text" id='site_lan_router' readonly></td>
+  	              <td><input type="text" id='site_lan_mask' readonly></td>
+  	            </tr>
+  	          <tr><th>Uplink</th><td>&nbsp;</td><th>Gateway</th><th>Mask</th></tr>
+  	          <tr>
+  	            <td><input type="text" id='site_uplink_address' readonly></td>
+  	            <td>&nbsp;</td>
+  	            <td><input type="text" id='site_uplink_route' readonly></td>
+  	            <td><input type="text" id='site_uplink_mask' readonly></td></tr>
+	          </table>
+ 	      </td>
+  	  </tr>
+  	</table>
+</body>
+</html>

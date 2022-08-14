@@ -1,0 +1,22 @@
+#!/usr/local/bin/ruby
+require 'wikk_configuration'
+require 'wikk_sql'
+
+load '/wikk/etc/wikk.conf'
+Dir.chdir WIKK_DIR
+
+# Get the next free customer ID and increment the value so the next call works.
+def last_customer_id(sql:)
+  # make use of sequence functions we added to our mySQL instance.
+  res = sql.query_hash <<~SQL
+    SELECT sequence_currval('customer.site_id') AS seq
+  SQL
+  raise 'next_customer_id(): failed to get id' if res.nil? || res.length == 0 # should never happen
+
+  return res.first['seq'].to_i # there should only be 1 row returned.
+end
+
+@mysql_conf = WIKK::Configuration.new(MYSQL_CONF)
+WIKK::SQL.connect(@mysql_conf) do |sql_fd|
+  puts "Last allocated site id #{last_customer_id(sql: sql_fd)}"
+end

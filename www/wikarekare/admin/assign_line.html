@@ -1,0 +1,167 @@
+<html>
+<head>
+  <title>Assign Line</title>
+  <script src="/js/jquery-3.0.0.min.js"></script>
+  <script src="/js/wikk_ajax-min.js"></script>
+  <script src="/js/wikk_web_auth-min.js"></script>
+  <script>
+    var data_packet = {
+      "lines": ["0"],
+      "site_links": [
+        {"site_name": "wikk000", "link": "0"}
+      ]
+    }
+
+    function del_rows(table_id) { //remove table body's rows
+        for(var i = table_id.rows.length; i > 0 ; i--) {
+          table_id.deleteRow(i-1);
+        }
+    }
+
+    function create_table(data) {
+      var the_table_head = document.getElementById('lines_table_head');
+      var the_table_body = document.getElementById('lines_table_body');
+      del_rows(the_table_head);
+      del_rows(the_table_body);
+
+      if(data != null) {
+        //Table Head
+        var hrow = the_table_head.insertRow(0);
+        hrow.insertCell(0).innerHTML = "Site Name";
+        for(var line = 0; line < data.lines.length ; line++) {
+          hrow.insertCell(line + 1).innerHTML = ((data.lines[line] == "0") ? "Off" : data.lines[line]);
+        }
+
+        //Table body
+        for(var site in data.site_links) {
+          var row = the_table_body.insertRow(site);
+          row.insertCell(0).innerHTML = data.site_links[site].site_name;
+
+          for(var line = 0; line < data.lines.length ; line++) {
+            var s = "<input type='radio' name='" + data.site_links[site].site_name + "'" + " value='" + data.lines[line]  + "'" + ((data.site_links[site].link == data.lines[line]) ? "checked = 'checked'" : "") + " onclick='site_value_changed(this);' />";
+            row.insertCell(line + 1).innerHTML = s;
+          }
+        }
+      }
+    }
+
+    function site_value_change_callback(data) {   //Called when we get a response.
+    }
+    function site_value_change_error(jqXHR, textStatus, errorMessage) {   //Called on failure
+    }
+    function site_value_change_completion(data) {   //Called when everything completed, including callback.
+    }
+
+    function site_value_changed(site_input) {
+      //alert(site_input.name + " " + site_input.value);
+      for(var site in data_packet.site_links) {
+        if(site_input.name == data_packet.site_links[site].site_name && site_input.value != data_packet.site_links[site].link) {
+          data_packet.site_links[site].link = site_input.value;
+          //alert("Changed " + site_input.name + " to line " + site_input.value);
+          var args = {
+            "method": "Customer.update",
+            "kwparams": {
+              "select_on": { "site_name": site_input.name },
+              "set": { "link": site_input.value },
+              "result": []
+            },
+            "version": 1.1
+          }
+          url = "/ruby/rpc.rbx"
+          wikk_ajax.ajax_post_call(url, args, site_value_change_callback, site_value_change_error, site_value_change_completion, 'json', true)
+        }
+      }
+      return false;
+    }
+
+    function get_customers_callback(data) {   //Called when we get a response.
+      if(data != null && data.result != null) {
+        data_packet.site_links = [];
+        for(d = 0; d < data.result.affected_rows; d++) {
+          data_packet.site_links[d] = {};
+          data_packet.site_links[d]["site_name"] = data.result.rows[d].site_name;
+          data_packet.site_links[d]["link"] = data.result.rows[d].link;
+        }
+        create_table(data_packet);
+      }
+    }
+    function get_customers_error(jqXHR, textStatus, errorMessage) {   //Called on failure
+    }
+    function get_customers_completion(data) {   //Called when everything completed, including callback.
+      get_customers(1800000);
+    }
+
+    function get_customers(delay) {
+      var args = {
+        "method": "Customer.read",
+        "kwparams": {
+          "select_on": { "active": "1" }, //every active site
+          "order_by": ['site_name'],
+          "set": { }, //no fields to update in a GET
+          "result": ["site_name", "link"]
+        },
+        "version": 1.1
+      }
+      url = "/ruby/rpc.rbx"
+      wikk_ajax.delayed_ajax_post_call(url, args, get_customers_callback, get_customers_error, get_customers_completion, 'json', true, delay)
+      return false;
+    }
+
+    function get_lines_callback(data) {   //Called when we get a response.
+      if(data != null && data.result != null) {
+        data_packet.lines = [0];
+        for(d = 0; d < data.result.affected_rows; d++) {
+          data_packet.lines[d+1] = data.result.rows[d].line_number;
+        }
+      }
+    }
+    function get_lines_error(jqXHR, textStatus, errorMessage) {   //Called on failure
+    }
+    function get_lines_completion(data) {   //Called when everything completed, including callback.
+      get_customers(0);
+    }
+
+    function get_lines(delay) {
+      //alert(site_input.name + " " + site_input.value);
+      var args = {
+        "method": "Line.read",
+        "kwparams": {
+          "select_on": { "active": "1" }, //every active line
+          "order_by": ['line_number'],
+          "set": { }, //no fields to update in a GET
+          "result": ["line_number"]
+        },
+        "version": 1.1
+      }
+      url = "/ruby/rpc.rbx"
+      wikk_ajax.delayed_ajax_post_call(url, args, get_lines_callback, get_lines_error, get_lines_completion, 'json', true, delay)
+    }
+
+    function login_callback() {
+      get_lines(0);
+    }
+
+    function init() {
+      //(display lock/unlock image only)
+      wikk_web_auth.logged_in(true, "/admin/assign_line.html", "login_span", login_callback)
+    }
+  </script>
+</head>
+<body onload="init()">
+  <span id="login_span"></span><br>
+  <table id="lines_table" border="1">
+    <thead id="lines_table_head">
+      <tr><th>Site Name</th><th>1</th><th>2</th><th>3</th><th>Offline</th></tr>
+    </thead>
+    <tbody id="lines_table_body">
+      <tr>
+        <th>wikk000</th>
+        <td><input type="radio" name="wikk000" value="1" checked="checked"/></td>
+        <td><input type="radio" name="wikk000" value="2"/></td>
+        <td><input type="radio" name="wikk000" value="3"/></td>
+        <td><input type="radio" name="wikk000" value="0"/></td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>

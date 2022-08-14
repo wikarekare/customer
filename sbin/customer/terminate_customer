@@ -1,0 +1,47 @@
+#!/usr/local/bin/ruby
+require 'wikk_configuration'
+require 'wikk_sql'
+
+load '/wikk/etc/wikk.conf'
+
+def set_customer_inactive(site_name:, termination_date: nil)
+  termination_date = Time.now.strftime('%Y-%m-%d') if termination_date.nil?
+  customer_update_query = <<~SQL
+    UPDATE customer
+      SET active=0,link=0,termination='#{termination_date}'
+      WHERE site_name = '#{site_name}'
+  SQL
+
+  customer_distribution_query = <<~SQL
+    UPDATE customer AS c, customer_distribution AS cd
+      SET cd.distribution_id = (SELECT distribution_id FROM distribution where site_name='TERMINATED')
+      WHERE c.site_name = '#{site_name}'
+      AND c.customer_id = cd.customer_id
+  SQL
+
+  customer_dns_subnet_query = <<~SQL
+    UPDATE customer AS c, customer_dns_subnet AS cs,  dns_subnet as ds
+      SET cs.end_date = '#{termination_date}'
+      WHERE c.site_name = '#{site_name}'
+      AND c.customer_id = cs.customer_id
+      AND cs.dns_subnet_id = ds.dns_subnet_id
+      AND ds.state in ('active', 'reserved')
+  SQL
+
+  dns_subnet_query = <<~SQL
+    UPDATE customer AS c, customer_dns_subnet AS cs, dns_subnet AS ds
+      SET ds.state = 'retired'
+      WHERE c.site_name = '#{site_name}'
+      AND c.customer_id = cs.customer_id
+      AND cs.dns_subnet_id = ds.dns_subnet_id
+  SQL
+
+  @mysql_conf = WIKK::Configuration.new(MYSQL_CONF)
+  WIKK::SQL.connect(@mysql_conf) do |sql|
+    [ customer_update_query, customer_distribution_query, customer_dns_subnet_query, dns_subnet_query ].each do |query|
+      puts query # .gsub(/\s+/, ' ')
+      sql.query( query )
+      puts "    Updated #{sql.affected_rows} rows"
+    end
+  end
+end
