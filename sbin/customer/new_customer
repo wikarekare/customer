@@ -2,241 +2,133 @@
 require 'wikk_configuration'
 require 'wikk_sql'
 
-load '/wikk/etc/wikk.conf'
-Dir.chdir WIKK_DIR
+RLIB = '/wikk/rlib' unless defined? RLIB
+require_relative "#{RLIB}/wikk_conf.rb"
+require_relative "#{RLIB}/customer/customer.rb"
 
-# Get the next free customer ID and increment the value so the next call works.
-def next_customer_id(sql:)
-  # make use of sequence functions we added to our mySQL instance.
-  res = sql.query_hash <<~SQL
-    SELECT sequence_nextval('customer.site_id') AS seq
-  SQL
-  raise 'next_customer_id(): failed to get id' if res.nil? || res.length == 0 # should never happen
+VERSION = '1.1.0'
 
-  return res.first['seq'].to_i # there should only be 1 row returned.
-end
+def parse_args(argv: ARGV)
+  options = {
+    debug: false,
+    update: false,
+    lat: -36.988197841057804, # Beach, so at least it is easy to find on the map
+    long: 174.47384965188704,
+    height: 3                 # Wild guess
+  }
+  begin
+    @opt_parser = OptionParser.new(ARGV) do |opts|
+      opts.banner = "Usage: #{$PROGRAM_NAME} [options]"
 
-# calculate link, based on balancing link numbers or possible link usage
-# Alternative could be
-#    select hostname, sum(bytes_in + bytes_out) from log_summary where hostname like 'lin%' and log_timestamp > DATE_SUB(now(), INTERVAL 31 DAY) group by hostname;
-# To find the least used line from the traffic logs.
-def calculate_link(sql:)
-  links = {}
-  query = <<~SQL
-    SELECT link, count(*) AS n FROM customer WHERE active = 1 GROUP BY link
-  SQL
-  sql.each_hash(query) do |row|
-    links[row['link']] = row['n'].to_i if row['link'] != '0' # ignore the disabled line
-  end
-  raise 'calculate_link(): Failed to find link' if links.length == 0
+      opts.on('--site=SITE', String, 'Customer site name (Automatic, if not provided)') do |site|
+        options[:site] = site
+      end
 
-  return links.to_a.min_by { |_k, v| v }[0] # Convert hash array, find the min value, return key of this value.
-end
+      opts.on('--date=DATE', String, 'Connection date') do |date|
+        options[:date] = date
+      end
 
-# retrieve the customer_id, given the site_name. This isn't the wikkxxx value.
-def get_customer_id(sql:, site_name:)
-  res = sql.query_hash <<~SQL
-    SELECT customer_id FROM customer WHERE site_name = '#{site_name}' AND active = 1
-  SQL
-  raise "get_customer_id(#{site_name}): Failed to get customer_id" if res.nil? || res.length == 0 # should never happen
+      opts.on('--address=ADDRESS', String, 'Site Address') do |address|
+        options[:address] = address
+      end
 
-  return res.first['customer_id'].to_i # there should only be 1 row returned.
-end
+      opts.on('--name=NAME', String, 'Customer Name') do |name|
+        options[:name] = name
+      end
 
-# Create a new customer record. Lots of fields may be left blank, but we do need a site_name and link.
-def new_customer_record(sql:, site_name:, link:, connected: 'NULL', name: '', email: '', mobile: '', telephone: '', site_address: '',
-                        billing_address: nil, billing_name: '', comment: '', plan: 1,
-                        latitude: 'NULL', longitude: 'NULL', height: 'NULL'
-)
+      opts.on('--distribution=DIST', String, 'Distribution Site (either this, or Subnet_id)') do |dist|
+        options[:distribution] = dist
+      end
 
-  raise 'new_customer_record(): Need a site name' if site_name.nil?
-  raise 'new_customer_record(): link should be non-zero' if link.nil? || link == 0
+      opts.on('--subnet_id=SUBNET', String, 'subnet id (Either this, or Distribution Site)') do |subnet|
+        options[:subnet_id] = subnet
+      end
 
-  billing_address = site_address if billing_address.nil? || billing_address == ''
+      opts.on('--phone=PHONE', String, 'Landline Phone Number') do |phone|
+        options[:phone] = phone
+      end
 
-  query = <<~SQL
-    INSERT IGNORE INTO customer (site_name, link, active, connected, name,  email, mobile, telephone, site_address, billing_address, billing_name, comment, plan, latitude, longitude, height)
-    VALUES ( '#{site_name}', #{link}, 1, '#{connected}', '#{name}', '#{email}',  '#{mobile}', '#{telephone}', '#{site_address}', '#{billing_address}', '#{billing_name}', '#{comment}', #{plan}, #{latitude}, #{longitude}, #{height})
-  SQL
-  puts 'Create customer record, if it didn\'t already exist'
-  sql.query( query )
+      opts.on('--mobile=MOBILE', String, 'Customer cell phone') do |mobile|
+        options[:mobile] = mobile
+      end
 
-  # add test for success, though will see this when we try to get the customer_id!
-  return get_customer_id(sql: sql, site_name: site_name)
-end
+      opts.on('--email=EMAIL', String, 'Customer email address') do |email|
+        options[:email] = email
+      end
 
-# ensure the dns subnet table entry is set to active.
-def activate_dns_subnet(sql:, customer_id:, dns_subnet_id:)
-  puts 'Link customer to subnet, setting the dns_subnet table entry to active'
-  sql.query <<~SQL
-    UPDATE dns_subnet SET state = 'active' WHERE dns_subnet_id = #{dns_subnet_id}
-  SQL
-  sql.query <<~SQL
-    INSERT IGNORE INTO customer_dns_subnet (customer_id, dns_subnet_id) VALUES ('#{customer_id}', '#{dns_subnet_id}')
-  SQL
-end
+      opts.on('--lat=LAT', String, 'Customer Router Latitude') do |lat|
+        options[:lat] = lat
+      end
 
-# ensure other dns subnet table entries for this customer are set to retired.
-def retire_existing_dns_subnet(sql:, customer_id:, new_dns_subnet_id: )
-  puts 'retire old dns_subnet table entries for this customer'
-  query = <<~SQL
-    UPDATE dns_subnet,customer_dns_subnet
-    SET dns_subnet.state = 'retired'
-    WHERE customer_dns_subnet.customer_id = #{customer_id}
-      AND customer_dns_subnet.dns_subnet_id != #{new_dns_subnet_id}
-      AND customer_dns_subnet.dns_subnet_id = dns_subnet.dns_subnet_id
-  SQL
-  sql.query(query)
-end
+      opts.on('--long=LONG', String, 'Customer Router Longitude') do |long|
+        options[:long] = long
+      end
 
-# retire customer entries for other distribution routers
-def retire_existing_distribution_router(sql:, customer_id:, new_dns_subnet_id: )
-  query = <<~SQL
-    UPDATE customer_distribution,dns_subnet, dns_network
-    SET customer_distribution.distribution_id = (select distribution_id
-    FROM distribution WHERE site_name = 'TERMINATED')
-    WHERE customer_distribution.customer_id = #{customer_id}
-      AND customer_distribution.distribution_id = dns_network.distribution_id
-      AND dns_network.dns_network_id = dns_subnet.dns_network_id
-      AND dns_subnet.dns_subnet_id != #{new_dns_subnet_id}
-  SQL
-  puts 'Retire any existing tower entries for this customer, if not the new tower'
-  puts query
-  sql.query( query )
-  puts "Added #{sql.affected_rows} rows in customer_distribution"
-end
+      opts.on('--height=HEIGHT', String, 'Customer Router height above ground') do |height|
+        options[:height] = height
+      end
 
-# add customer to the tower's distribution router
-def add_customer_distribution_router(sql:, customer_id:, dns_subnet_id:)
-  query = <<~SQL
-    REPLACE INTO customer_distribution (customer_id, distribution_id)
-      SELECT '#{customer_id}', distribution_id
-      FROM dns_subnet JOIN dns_network USING (dns_network_id)
-      WHERE dns_subnet_id = #{dns_subnet_id}
-  SQL
-  puts 'Add customer to tower'
-  puts query
-  sql.query( query )
-  puts "Added #{sql.affected_rows} rows in customer_distribution"
-end
+      opts.on('--line=LINE', String, 'Which external line to use (Automatic, if not provided)') do |line|
+        options[:link] = line
+      end
 
-#+----------------+-----------+------+
-# | dist_site_name | subnet_id | size |
-#+----------------+-----------+------+
-# | oceanview4     |      1620 |   31 |
-#+----------------+-----------+------+
-def dns_host_gen_insert_params(site_name:)
-  return <<~SQL
-    SELECT distribution.site_name AS dist_site_name, dns_subnet.dns_subnet_id AS subnet_id, dns_subnet.broadcast AS size
-    FROM customer, customer_dns_subnet, dns_subnet, dns_network, distribution
-    WHERE customer.site_name = '#{site_name}'
-      AND customer.customer_id = customer_dns_subnet.customer_id
-      AND customer_dns_subnet.dns_subnet_id = dns_subnet.dns_subnet_id
-      AND dns_subnet.state = 'active'
-      AND dns_subnet.dns_network_id = dns_network.dns_network_id
-      AND dns_network.distribution_id = distribution.distribution_id
-  SQL
-end
+      opts.on('--customer_id=CUSTOMER_ID', String, 'Customer id. (Automatic, if not provided)') do |customer_id|
+        options[:customer_id] = customer_id
+      end
 
-def gen_site_dns_hosts_query(distribution_site_name:, site_name:, dns_subnet_id:, subnet_size: 32, update: false)
-  # UNIQUE KEY `the_host` (`host_index`,`dns_subnet_id`)
-  query = 'INSERT '
-  query += 'IGNORE ' unless update
-  query += "INTO dns_host (host_name, dns_type, dns_subnet_id, host_index ) VALUES ( '#{distribution_site_name}-#{site_name}-net', 'A', #{dns_subnet_id}, 0), "
-  (1..subnet_size - 3).each do |i|
-    query += "( '#{distribution_site_name}-#{site_name}-#{'%02d' % i}', 'A', #{dns_subnet_id}, #{i} ), "
-  end
-  query += "( '#{distribution_site_name}-#{site_name}-r', 'A', #{dns_subnet_id}, #{subnet_size - 2} ), "
-  query += "( '#{distribution_site_name}-#{site_name}-bc', 'A', #{dns_subnet_id}, #{subnet_size - 1} ) "
+      # No argument, shows at tail.  This will print an options summary.
+      opts.on_tail('-h', '--help', 'Show this message') do
+        puts opts
+        exit
+      end
 
-  query += 'ON DUPLICATE KEY UPDATE host_name = VALUES(host_name)' if update
-  return query
-end
-
-# Create the dns_host table entries for this new customer.
-def gen_dns_host_entries(sql:, site_name:, update: false, debug: false)
-  dist_site_name = ''
-  dns_subnet_id = subnet_size = 0
-
-  puts dns_host_gen_insert_params(site_name: site_name), "\n" if debug
-  sql.each_hash(dns_host_gen_insert_params(site_name: site_name)) do |row|
-    dist_site_name = row['dist_site_name']
-    dns_subnet_id = row['subnet_id']
-    subnet_size = row['size'].to_i + 1
-  end
-  puts "#{dist_site_name} #{site_name} subnet ID: #{dns_subnet_id}, size: #{subnet_size}", "\n" if debug
-  if dist_site_name != '' && dns_subnet_id != 0
-    puts "Creating dns_host entries for #{dist_site_name} #{site_name}", "\n"
-    query = gen_site_dns_hosts_query(distribution_site_name: dist_site_name, site_name: site_name, dns_subnet_id: dns_subnet_id, subnet_size: subnet_size, update: update)
-    if debug
-      puts query
-    else
-      sql.query(query)
-      puts "Added or updated #{sql.affected_rows} rows in dns_host"
+      # Another typical switch to print the version.
+      opts.on_tail('-v', '--version', 'Show version') do
+        puts VERSION
+        exit
+      end
     end
-  end
-end
+    @opt_parser.parse! argv
 
-# We need to create a NULL entry for this new customer, so the status web pages behave well.
-def gen_lastping_entry(sql:, site_name:)
-  puts 'Ensure there is an entry in lastping, so graphs show black for new, yet to be seen, sites'
-  sql.query <<~SQL
-    INSERT IGNORE INTO lastping (hostname, ping_time) VALUES ('#{site_name}', NULL)
-  SQL
-end
-
-def new_customer(
-  subnet_id:,                                   # Need this one. Get from tower customer table.
-  customer_name: '',                             # Really want this one too, but don't always have it
-  site_address: '',                              # Really want this one as well
-  email: '', mobile: '', telephone: '',          # Useful to have
-  latitude: -36.988197841057804, longitude: 174.47384965188704, height: 3, # Default to the beach :)
-  site_name: nil,                                # Usually generated automatically
-  link: nil,                                     # Usually generated automatically
-  customer_id: nil,                              # Usually generated automatically
-  connected: nil
-)
-
-  @mysql_conf = WIKK::Configuration.new(MYSQL_CONF)
-  WIKK::SQL.connect(@mysql_conf) do |sql_fd|
-    if site_name.nil?
-      site_id ||= next_customer_id(sql: sql_fd)
-      site_name = 'wikk%03d' % site_id
+    if options[:distribution].nil? && options[:subnet_id].nil?
+      usage
+      exit(-1)
     end
-
-    puts "site_name: #{site_name}"
-
-    link ||= calculate_link(sql: sql_fd)
-    puts "Link: #{link}"
-
-    connected ||= Time.now.strftime('%Y-%m-%d')
-
-    customer_id ||= new_customer_record(sql: sql_fd,
-                                        site_name: site_name,
-                                        link: link,
-                                        connected: connected,
-                                        name: customer_name,
-                                        email: email,
-                                        mobile: mobile,
-                                        telephone: telephone,
-                                        site_address: site_address,
-                                        latitude: latitude, longitude: longitude, height: height
-    )
-
-    puts "customer_id: #{customer_id}"
-
-    retire_existing_dns_subnet(sql: sql_fd, customer_id: customer_id, new_dns_subnet_id: subnet_id)
-    activate_dns_subnet(sql: sql_fd, customer_id: customer_id, dns_subnet_id: subnet_id)
-
-    retire_existing_distribution_router(sql: sql_fd, customer_id: customer_id, new_dns_subnet_id: subnet_id)
-    add_customer_distribution_router(sql: sql_fd, customer_id: customer_id, dns_subnet_id: subnet_id)
-
-    gen_lastping_entry(sql: sql_fd, site_name: site_name)
-
-    gen_dns_host_entries(sql: sql_fd, site_name: site_name, update: true, debug: false)
-
-  rescue StandardError => e
-    $stderr.puts "new_customer(#{subnet_id}, #{customer_name}): #{e}"
-    return
+  rescue OptionParser::InvalidArgument => e
+    puts e
+    usage
+    exit(-1)
   end
+  options.argv = argv # Any trailing arguments
+  return options
+end
+
+def usage
+  warn @opt_parser.to_s
+end
+
+args = parse_args # default to ARGV
+if args.argv.length > 0
+  usage
+  exit(-1)
+end
+
+@mysql_conf = WIKK::Configuration.new(MYSQL_CONF)
+WIKK::SQL.connect(@mysql_conf) do |sql_fd|
+  new_customer( sql: sql_fd,
+                distribution_site: args[:distribution], # Optional, if subnet_id given
+                subnet_id: args[:subnet_id],            # Need this one, if distribution site not given, or have already setup IP addresses
+                customer_name: args[:name],             # Really want this one too, but don't always have it
+                site_address: args[:address],           # Really want this one as well
+                email: args[:email],                    # Useful to have
+                mobile: args[:mobile],                  # Useful to have
+                telephone: args[:phone],                # Useful to have
+                latitude: args[:lat],                   # Useful to have
+                longitude: args[:long],                 # Useful to have
+                height: args[:height],                  # Default to the beach :)
+                site_name: args[:site],                 # generated automatically if nil
+                link: args[:link],                      # generated automatically if nil
+                customer_id: args[:customer_id],        # generated automatically if nil
+                connected: args[:date]                  # Defaults to today
+              )
 end

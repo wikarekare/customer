@@ -2,46 +2,71 @@
 require 'wikk_configuration'
 require 'wikk_sql'
 
-load '/wikk/etc/wikk.conf'
+RLIB = '/wikk/rlib' unless defined? RLIB
+require_relative "#{RLIB}/wikk_conf.rb"
+require_relative "#{RLIB}/customer/customer.rb"
 
-def set_customer_inactive(site_name:, termination_date: nil)
-  termination_date = Time.now.strftime('%Y-%m-%d') if termination_date.nil?
-  customer_update_query = <<~SQL
-    UPDATE customer
-      SET active=0,link=0,termination='#{termination_date}'
-      WHERE site_name = '#{site_name}'
-  SQL
+VERSION = '1.1.0'
 
-  customer_distribution_query = <<~SQL
-    UPDATE customer AS c, customer_distribution AS cd
-      SET cd.distribution_id = (SELECT distribution_id FROM distribution where site_name='TERMINATED')
-      WHERE c.site_name = '#{site_name}'
-      AND c.customer_id = cd.customer_id
-  SQL
+def parse_args(argv: ARGV)
+  options = {
+    debug: false,
+    update: false
+  }
+  required = [ :site, :date ]
 
-  customer_dns_subnet_query = <<~SQL
-    UPDATE customer AS c, customer_dns_subnet AS cs,  dns_subnet as ds
-      SET cs.end_date = '#{termination_date}'
-      WHERE c.site_name = '#{site_name}'
-      AND c.customer_id = cs.customer_id
-      AND cs.dns_subnet_id = ds.dns_subnet_id
-      AND ds.state in ('active', 'reserved')
-  SQL
+  begin
+    @opt_parser = OptionParser.new(ARGV) do |opts|
+      opts.banner = "Usage: #{$PROGRAM_NAME} [options]"
 
-  dns_subnet_query = <<~SQL
-    UPDATE customer AS c, customer_dns_subnet AS cs, dns_subnet AS ds
-      SET ds.state = 'retired'
-      WHERE c.site_name = '#{site_name}'
-      AND c.customer_id = cs.customer_id
-      AND cs.dns_subnet_id = ds.dns_subnet_id
-  SQL
+      opts.on('--site=SITE', String, 'Terminate customer site') do |site|
+        options[:site] = site
+      end
 
-  @mysql_conf = WIKK::Configuration.new(MYSQL_CONF)
-  WIKK::SQL.connect(@mysql_conf) do |sql|
-    [ customer_update_query, customer_distribution_query, customer_dns_subnet_query, dns_subnet_query ].each do |query|
-      puts query # .gsub(/\s+/, ' ')
-      sql.query( query )
-      puts "    Updated #{sql.affected_rows} rows"
+      opts.on('--date=DATE', String, 'Termination date') do |date|
+        options[:date] = date
+      end
+
+      # No argument, shows at tail.  This will print an options summary.
+      opts.on_tail('-h', '--help', 'Show this message') do
+        puts opts
+        exit
+      end
+
+      # Another typical switch to print the version.
+      opts.on_tail('-v', '--version', 'Show version') do
+        puts VERSION
+        exit
+      end
     end
+    @opt_parser.parse! argv
+
+    required.each do |switch|
+      if options[switch].nil?
+        usage
+        exit(-1)
+      end
+    end
+  rescue OptionParser::InvalidArgument => e
+    puts e
+    usage
+    exit(-1)
   end
+  options.argv = argv # Any trailing arguments
+  return options
+end
+
+def usage
+  warn @opt_parser.to_s
+end
+
+args = parse_args # default to ARGV
+if args.argv.length > 0
+  usage
+  exit(-1)
+end
+
+@mysql_conf = WIKK::Configuration.new(MYSQL_CONF)
+WIKK::SQL.connect(@mysql_conf) do |sql_fd|
+  set_customer_inactive(sql: sql_fd, site_name: args[:site], termination_date: args[:date])
 end

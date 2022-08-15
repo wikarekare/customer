@@ -1,17 +1,16 @@
 #!/usr/local/bin/ruby
+# Script to generate the customer_network.yml file
+# This is a simple IPv4 Network address to customer site name mapping.
+# Used by the capture/accounting software to associate IP traffic logs with a customer site
 require 'wikk_sql'
 require 'wikk_configuration'
 require 'fileutils'
+RLIB = '/wikk/rlib' unless defined? RLIB
+require_relative "#{RLIB}/wikk_conf.rb"
 
-load '/wikk/etc/wikk.conf'
-
-# Set up empty hash to hold the network IP addresses for each site
-def setup
-  @networks = {}
-end
-
-# Fetch each sites network ip addresses (some may have had more than one, over time)
+# Fetch all sites network ip addresses (some may have had more than one, if they shifted distribution sites)
 def fetch_customer_networks
+  @networks = {}
   query = <<~SQL
     SELECT inet_ntoa(dns_network.network + subnet * subnet_size) AS network, site_name
     FROM customer, customer_dns_subnet, dns_network,dns_subnet
@@ -41,6 +40,5 @@ def save_customer_networks
   FileUtils.mv('/tmp/customer_networks.yml', CUSTOMER_NETWORKS) if @networks.length > 0
 end
 
-setup
 fetch_customer_networks
 save_customer_networks

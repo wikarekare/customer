@@ -29,7 +29,7 @@ class Customer < RPC
       @select_acl = [ 'customer_id', 'name', 'site_name', 'site_address', 'latitude', 'longitude', 'height',
                       'link', 'active', 'comment', 'email', 'mobile', 'telephone',
                       'plan', 'billing_name', 'billing_address', 'connected', 'termination', 'net_node_interface_id'
-]
+                    ]
       @result_acl = @select_acl
       @set_acl = [ 'link', 'plan', 'active' ]
     else
