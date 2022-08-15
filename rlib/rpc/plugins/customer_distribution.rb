@@ -13,13 +13,13 @@ class Customer_Distribution < RPC
     customer = Customer.new(authenticated)
     distribution = Distribution.new(authenticated)
     if authenticated
-      @select_acl = [ 'customer_distribution.customer_id', 'customer_distribution.distribution_id' ]
+      @select_acl = [ 'customer_distribution.customer_id', 'customer_distribution.distribution_id' ] # rubocop:disable Style/IdenticalConditionalBranches
       @result_acl = @select_acl
-      @set_acl = []
+      @set_acl = [] # rubocop:disable Style/IdenticalConditionalBranches
     else
-      @select_acl = [ 'customer_distribution.customer_id', 'customer_distribution.distribution_id' ]
+      @select_acl = [ 'customer_distribution.customer_id', 'customer_distribution.distribution_id' ] # rubocop:disable Style/IdenticalConditionalBranches
       @result_acl = []
-      @set_acl = []
+      @set_acl = [] # rubocop:disable Style/IdenticalConditionalBranches
     end
     @select_acl += customer.select_acl.collect { |c| 'customer.' + c } +
                    distribution.select_acl.collect { |c| 'distribution.' + c }

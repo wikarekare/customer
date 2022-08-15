@@ -12,11 +12,11 @@ class Plan < RPC
   def initialize(authenticated = false)
     super(authenticated)
     if authenticated # Same as unauthenticated for the moment.
-      @select_acl = [ 'plan_id', 'base_gb', 'extended_gb', 'base_price', 'extended_unit_price', 'excess_unit_price', 'plan_name', 'free_rate' ]
+      @select_acl = [ 'plan_id', 'base_gb', 'extended_gb', 'base_price', 'extended_unit_price', 'excess_unit_price', 'plan_name', 'free_rate' ] # rubocop:disable Style/IdenticalConditionalBranches
       @result_acl = @select_acl
       @set_acl = [ 'base_gb', 'extended_gb', 'base_price', 'extended_unit_price', 'excess_unit_price', 'plan_name', 'free_rate' ]
     else
-      @select_acl = [ 'plan_id', 'base_gb', 'extended_gb', 'base_price', 'extended_unit_price', 'excess_unit_price', 'plan_name', 'free_rate' ]
+      @select_acl = [ 'plan_id', 'base_gb', 'extended_gb', 'base_price', 'extended_unit_price', 'excess_unit_price', 'plan_name', 'free_rate' ] # rubocop:disable Style/IdenticalConditionalBranches
       @result_acl = @select_acl
       @set_acl = []
     end

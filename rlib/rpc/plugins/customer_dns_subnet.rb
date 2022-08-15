@@ -12,7 +12,7 @@ class Customer_DNS_Subnet < RPC
   def initialize(authenticated = false)
     super(authenticated)
     customer = Customer.new(authenticated)
-    dns_subnet = DNS_Subnet.new(authenticated)
+    # dns_subnet = DNS_Subnet.new(authenticated)
     @select_acl = [ 'customer_dns_subnet.customer_id', 'customer_dns_subnet.dns_subnet_id', 'start_date', 'end_date' ]
     @result_acl = @select_acl
     if authenticated
