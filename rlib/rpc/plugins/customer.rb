@@ -202,4 +202,38 @@ class Customer < RPC
     SQL
     return sql_query(query: query)
   end
+
+  # Customer plan
+  rmethod :plan do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument"
+    site_name = select_on['site_name']
+    if site_name.nil? || site_name == ''
+      requestor = ENV.fetch('REMOTE_ADDR')
+      site_name = site_name(requestor, '255.255.255.224')
+      if site_name.nil? || hostname == ''
+        raise 'Require site_name' # Don't know who this is
+      end
+    end
+
+    query = <<~SQL
+      SELECT plan.*
+      FROM plan,customer
+      WHERE site_name='#{site_name}'
+      AND customer.plan = plan.plan_id
+    SQL
+    return sql_query(query: query)
+  end
+
+  private def site_name(subnet:)
+    # Test our SQL connector by returning the sitename for this IP
+    query = <<~SQL
+      SELECT customer.site_name
+      FROM customer, dns_network, dns_subnet, customer_dns_subnet
+      WHERE customer.customer_id = customer_dns_subnet.customer_id
+      AND customer_dns_subnet.dns_subnet_id = dns_subnet.dns_subnet_id
+      AND dns_subnet.dns_network_id = dns_network.dns_network_id
+      AND inet_ntoa(dns_network.network+(subnet * subnet_size)) = '#{subnet}'
+    SQL
+    result = WIKK::SQL.each_hash(@db_config, query)
+    return result.length > 0 ? result.first['site_name'] : ''
+  end
 end
