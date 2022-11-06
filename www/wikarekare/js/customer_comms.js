@@ -33,14 +33,14 @@ var wikk_customer = ( function() {
 
   function site_find_by_site_name(site_name, active, selectList = null, local_completion = null) {
     registered_site_find_completion = local_completion;
-    html_site_find_select_ids = selectList; 
+    html_site_find_select_ids = selectList;
 
-    var args = { 
+    var args = {
       "method": "Customer.find_by_site_name",
       "kwparams": {
         "select_on": { "site_name": site_name },
         "orderby": null,
-        "set": null,              
+        "set": null,
         "result": ['customer_id', 'name', 'site_name', 'site_address', 'latitude', 'longitude', 'height',
                    'link', 'active', 'comment', 'email', 'mobile', 'telephone', 'plan', 'billing_name',
                    'billing_address', 'connected', 'termination', 'net_node_interface_id' ]
@@ -54,14 +54,14 @@ var wikk_customer = ( function() {
 
   function site_find_by_site_address(site_address, active, selectList = null, local_completion = null) {
     registered_site_find_completion = local_completion;
-    html_site_find_select_ids = selectList; 
+    html_site_find_select_ids = selectList;
 
-    var args = { 
+    var args = {
       "method": "Customer.find_by_site_address",
       "kwparams": {
         "select_on": { "site_address": site_address, "active": active },
         "orderby": null,
-        "set": null,              
+        "set": null,
         "result": ['customer_id', 'name', 'site_name', 'site_address', 'latitude', 'longitude', 'height',
                    'link', 'active', 'comment', 'email', 'mobile', 'telephone', 'plan', 'billing_name',
                    'billing_address', 'connected', 'termination', 'net_node_interface_id' ]
@@ -75,14 +75,14 @@ var wikk_customer = ( function() {
 
   function site_find_by_name(name, active, selectList = null, local_completion = null) {
     registered_site_find_completion = local_completion;
-    html_site_find_select_ids = selectList; 
+    html_site_find_select_ids = selectList;
 
-    var args = { 
+    var args = {
       "method": "Customer.find_by_name",
       "kwparams": {
         "select_on": { "name": name, "active": active },
         "orderby": null,
-        "set": null,              
+        "set": null,
         "result": ['customer_id', 'name', 'site_name', 'site_address', 'latitude', 'longitude', 'height',
                    'link', 'active', 'comment', 'email', 'mobile', 'telephone', 'plan', 'billing_name',
                    'billing_address', 'connected', 'termination', 'net_node_interface_id' ]
@@ -118,17 +118,17 @@ var wikk_customer = ( function() {
       }
     }
   }
-  
+
   function get_site_list(selectList, local_completion) {
     registered_local_completion = local_completion;
     html_select_ids = selectList;
 
-    var args = { 
+    var args = {
       "method": "Customer.read",
       "kwparams": {
         "select_on": { "active": 1 },
         "orderby": null,
-        "set": null,              
+        "set": null,
         "result": ['site_name', 'name', 'latitude', 'longitude', 'height', 'site_address']
       },
       "version": 1.1
@@ -149,6 +149,46 @@ var wikk_customer = ( function() {
     return null;
   }
 
+  var plan_local_completion = null;
+  var plan_record = null;
+
+  function plan_error(jqXHR, textStatus, errorMessage) {   //Called on failure
+  }
+
+  function plan_completion(data) {   //Called when everything completed, including callback.
+    if(plan_local_completion != null) {
+      plan_local_completion(plan_record);
+    }
+  }
+
+  function plan_callback(data) {   //Called when we get a response.
+    if(data != null && data.result != null) {
+      plan_record = data.result;
+    } else {
+      plan_record = null;
+    }
+  }
+
+  function plan(site_name, local_completion, delay) {
+    if(delay == null) delay = 0;
+    plan_local_completion = local_completion;
+
+    var args = {
+      "method": "Customer.plan",
+      "kwparams": {
+        "select_on": { "site_name": site_name },  //every active line
+        "orderby": null,
+        "set": null,              //blank, then no fields to update in a GET
+        "result": []
+      },
+      "version": 1.1
+    }
+
+    url = "/ruby/rpc.rbx"
+    wikk_ajax.delayed_ajax_post_call(url, args, plan_callback, plan_error, plan_completion, 'json', true, delay);
+    return false;
+  }
+
   //return a hash of key: function pairs, with the key being the same name as the function.
   //Hence call with wikk_customer.function_name()
   return {
@@ -157,6 +197,7 @@ var wikk_customer = ( function() {
     site_list: site_list_array,
     site_find_by_name: site_find_by_name,
     site_find_by_site_address: site_find_by_site_address,
-    site_find_by_site_name: site_find_by_site_name
+    site_find_by_site_name: site_find_by_site_name,
+    plan: plan
   };
 })();
