@@ -155,7 +155,7 @@ def move_customer(sql:, dist_site_name:, c_site_name:, dns_subnet_id: nil)
     return
   end
 
-  swap_customer_distribution(sql: sql, dist_site_name: dist_site_name, c_site_name: c_site_name)
+  set_customer_distribution(sql: sql, dist_site_name: dist_site_name, c_site_name: c_site_name)
   retire_existing_dns_subnet(sql: sql, c_site_name: c_site_name, new_dns_subnet_id: dns_subnet_id)
   activate_dns_subnet(sql: sql, c_site_name: c_site_name, dns_subnet_id: dns_subnet_id)
 
