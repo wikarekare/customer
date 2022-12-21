@@ -1,6 +1,8 @@
 #!/usr/local/bin/ruby
 require 'wikk_configuration'
 require 'wikk_sql'
+require 'optparse'
+require 'optparse/time'
 
 RLIB = '/wikk/rlib' unless defined? RLIB
 require_relative "#{RLIB}/wikk_conf.rb"
@@ -12,6 +14,7 @@ def parse_args(argv: ARGV)
   options = {
     debug: false,
     update: false,
+    argv: [],
     lat: -36.988197841057804, # Beach, so at least it is easy to find on the map
     long: 174.47384965188704,
     height: 3                 # Wild guess
@@ -99,7 +102,7 @@ def parse_args(argv: ARGV)
     usage
     exit(-1)
   end
-  options.argv = argv # Any trailing arguments
+  options[:argv] = argv # Any trailing arguments
   return options
 end
 
@@ -108,7 +111,7 @@ def usage
 end
 
 args = parse_args # default to ARGV
-if args.argv.length > 0
+if args[:argv].length > 0
   usage
   exit(-1)
 end

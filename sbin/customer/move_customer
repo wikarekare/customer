@@ -2,6 +2,8 @@
 # Move a customer to a new distribution tower.
 require 'wikk_configuration'
 require 'wikk_sql'
+require 'optparse'
+require 'optparse/time'
 
 RLIB = '/wikk/rlib' unless defined? RLIB
 require_relative "#{RLIB}/wikk_conf.rb"
@@ -12,7 +14,8 @@ VERSION = '1.1.0'
 def parse_args(argv: ARGV)
   options = {
     debug: false,
-    update: false
+    update: false,
+    argv: []
   }
   begin
     @opt_parser = OptionParser.new(ARGV) do |opts|
@@ -53,7 +56,7 @@ def parse_args(argv: ARGV)
     usage
     exit(-1)
   end
-  options.argv = argv # Any trailing arguments
+  options[:argv] = argv # Any trailing arguments
   return options
 end
 
@@ -62,12 +65,12 @@ def usage
 end
 
 args = parse_args # default to ARGV
-if args.argv.length > 0
+if args[:argv].length > 0
   usage
   exit(-1)
 end
 
 mysql_conf = WIKK::Configuration.new(MYSQL_CONF)
 WIKK::SQL.connect(mysql_conf) do |sql_fd|
-  move_customer(sql: sql_fd, dist_site_name: options[:distribution], c_site_name: options[:site], dns_subnet_id: options[:subnet_id])
+  move_customer(sql: sql_fd, dist_site_name: args[:distribution], c_site_name: args[:site], dns_subnet_id: args[:subnet_id])
 end
