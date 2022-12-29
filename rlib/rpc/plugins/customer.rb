@@ -208,7 +208,10 @@ class Customer < RPC
     site_name = select_on['site_name']
     if site_name.nil? || site_name == ''
       requestor = ENV.fetch('REMOTE_ADDR')
-      site_name = site_name(requestor, '255.255.255.224')
+      # Early filter: Is this one of our sites?
+      raise 'Not Local' if address_string !~ /^10\..+$/
+
+      site_name = get_site_name(site_address: requestor)
       if site_name.nil? || hostname == ''
         raise 'Require site_name' # Don't know who this is
       end
@@ -223,7 +226,21 @@ class Customer < RPC
     return sql_query(query: query)
   end
 
-  private def site_name(subnet:)
+  private def ip_s_to_i(ip:)
+    bytes = ip.split('.')
+    bytes.map!(&:to_i) # Turn each byte into an integer
+    (bytes[0] << 24) + (bytes[1] << 16) + (bytes[2] << 8) + bytes[3]
+  end
+
+  private def ip_i_to_s(n)
+    "#{(n >> 24) & 255}.#{(n >> 16) & 255}.#{(n >> 8) & 255}.#{n & 255}"
+  end
+
+  private def get_site_name(site_address:)
+    address = ip_s_to_i(ip: site_address)
+    mask = ip_s_to_i(ip: '255.255.255.224')
+    network = address & mask
+
     # Test our SQL connector by returning the sitename for this IP
     query = <<~SQL
       SELECT customer.site_name
@@ -231,7 +248,7 @@ class Customer < RPC
       WHERE customer.customer_id = customer_dns_subnet.customer_id
       AND customer_dns_subnet.dns_subnet_id = dns_subnet.dns_subnet_id
       AND dns_subnet.dns_network_id = dns_network.dns_network_id
-      AND inet_ntoa(dns_network.network+(subnet * subnet_size)) = '#{subnet}'
+      AND inet_ntoa(dns_network.network+(subnet * subnet_size)) = '#{ip_i_to_s(network)}'
     SQL
     result = WIKK::SQL.each_hash(@db_config, query)
     return result.length > 0 ? result.first['site_name'] : ''
