@@ -209,7 +209,7 @@ class Customer < RPC
     if site_name.nil? || site_name == ''
       requestor = ENV.fetch('REMOTE_ADDR')
       # Early filter: Is this one of our sites?
-      raise 'Not Local' if address_string !~ /^10\..+$/
+      raise 'Not Local' if requestor !~ /^10\..+$/
 
       site_name = get_site_name(site_address: requestor)
       if site_name.nil? || hostname == ''
