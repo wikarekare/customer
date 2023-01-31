@@ -35,16 +35,16 @@
 
 <script>
   var site_subnet_list = [];
-  
+
   function save_all() { alert('I don\'t actually do anything'); }
 
-  function create_user( ) { 
+  function create_user( ) {
     if (confirm("Don't push ok, unless you really mean it")) {
         alert( "You pressed OK!" );
     } else {
         alert( "You pressed Cancel!" );
     }
-    alert('Sorry, not going to do it.'); 
+    alert('Sorry, not going to do it.');
   }
 
   function allocate_ip() { alert('Not implemented'); }
@@ -66,29 +66,29 @@
       alert("Wouldn't it be nice if I really saved the field\n" + e.name + "\n For: " + site_name.value);
     }
   }
-  
+
   ///////////////////////////////////// New ///////////////////////////////////////////////////////
-  var last_tower = -1; 
+  var last_tower = -1;
   var image_blue = '/wikk_icons/wifi64.png';
   var image_red = '/wikk_icons/wifi64-red.png';
   var tower_locations = [];
   //We want the users current tower to show up in Red, and the other towers to show up as blue.
-  
+
   function set_tower_prev(t) {
     var current_tower = document.getElementById('distribution');
-    
+
     //Reset image to blue, if towers have changed.
     if(last_tower != -1 && last_tower != t) {
       window.tower_locations[last_tower].style.image.iconImage.src = image_blue;
     }
-    
+
     last_tower = t;
     current_tower.value = t; //Changes selection option, if we didn't get here from a selection.
     if(t != -1 && window.tower_locations[t] != null) {
         window.tower_locations[t].style.image.iconImage.src = image_red;
     }
   }
-  
+
   function set_tower(t) {
     if(site_subnet_list != null && site_subnet_list.length > 0) {
       for(var i=0; i<site_subnet_list.length; i++){
@@ -100,7 +100,7 @@
     }
     set_network_entries(null, false);
   }
-  
+
   function revert_tower() {
     var distribution_select = document.getElementById('distribution');
 
@@ -113,12 +113,12 @@
       }
     }
   }
-  
+
   function set_value_and_style(field, value, style) {
     field.value = value;
     field.style = style;
   }
-  
+
   function red_if_inactive(field, value, active) {
     if(active) {
       set_value_and_style(field, value, "color:black;");
@@ -126,7 +126,7 @@
       set_value_and_style(field, value, "color:red;");
     }
   }
-  
+
   function find_subnet_by_tower(tower) {
     if(site_subnet_list != null && site_subnet_list.length > 0) {
       for(var i=0; i<site_subnet_list.length; i++){
@@ -137,7 +137,7 @@
     }
     return -1;
   }
-  
+
   function color_dropdown() {
     var distribution_select = document.getElementById('distribution');
     for(var i=0; i < distribution_select.length; i++) {
@@ -156,13 +156,13 @@
       }
     }
   }
-  
+
   function set_network_entries(subnet, active) {
     var site_lan_first_address = document.getElementById("site_lan_first_address");
     var site_lan_last_address = document.getElementById("site_lan_last_address");
     var site_lan_router = document.getElementById("site_lan_router");
     var site_lan_mask = document.getElementById("site_lan_mask");
-    
+
     var site_uplink_address = document.getElementById("site_uplink_address");
     var site_uplink_route = document.getElementById("site_uplink_route");
     var site_uplink_mask = document.getElementById("site_uplink_mask");
@@ -173,7 +173,7 @@
       red_if_inactive( site_lan_last_address,  subnet['dhcp_end'], active);
       red_if_inactive( site_lan_router, subnet['gateway'], active);
       red_if_inactive( site_lan_mask, subnet['netmask'], active);
-      
+
       red_if_inactive( site_uplink_address, subnet['uplink'], active);
       red_if_inactive( site_uplink_route, "", active);
       red_if_inactive( site_uplink_mask, "255.255.255.0", active);
@@ -183,7 +183,7 @@
       site_lan_last_address.value = "";
       site_lan_router.value = "";
       site_lan_mask.value = "";
-      
+
       site_uplink_address.value = "";
       site_uplink_route.value = "";
       site_uplink_mask.value = "";
@@ -211,7 +211,7 @@
     var horizontal_distance = document.getElementById("horizontal_distance");
 
 //    original_tower.value = -1;
-//    set_tower(parseInt(original_tower.value)); 
+//    set_tower(parseInt(original_tower.value));
     site_name.value = "";
     name.value = "";
     billing_address.value = "";
@@ -231,7 +231,7 @@
 
     set_network_entries(null, false);
   }
-  
+
   function networks_callback(network_list) {
     var distribution_select = document.getElementById('distribution');
 
@@ -269,7 +269,7 @@
     clear_all();
     //Process the first of the rows of the customer entries that match the find.
     //Any other results end up in the 'Results" select.
-    if(data != null && data.length > 0) { 
+    if(data != null && data.length > 0) {
       site_name.value = data[0].site_name;
       name.value = data[0].name;
       billing_address.value = data[0].billing_address;
@@ -285,10 +285,10 @@
       site_latitude.value = data[0].latitude;
       comment.value = data[0].comment;
       site_height.value = data[0].height;
-//      set_tower(original_tower.value); 
+//      set_tower(original_tower.value);
       wikk_customer_networks.networks(data[0].site_name, networks_callback)
     }
-    
+
     site_coord_manual_change();
     center_on_site();
   }
@@ -307,7 +307,7 @@
     if( site_name.value != "") {
      wikk_customer.site_find_by_site_address(address.value, true, selectList = [alt_sites], local_completion = set_siteCallback);
     }
-  }  
+  }
 
   function set_site(site_name) {
     if( site_name != "") {
@@ -352,7 +352,7 @@
     var billing_address = document.getElementById("billing_address");
     site_address.value = billing_address.value;
   }
-  
+
   var map;
   var features = [];
   var marker1;
@@ -379,7 +379,7 @@
 
   function set_customer_marker(site_record) {
     set_site_coord(site_record.latitude, site_record.longitude, site_record.height, site_record.site_address, site_record.name);
-    var coord = ol.proj.transform([parseFloat(site_record.longitude), parseFloat(site_record.latitude)], 'EPSG:4326', 'EPSG:3857'); 
+    var coord = ol.proj.transform([parseFloat(site_record.longitude), parseFloat(site_record.latitude)], 'EPSG:4326', 'EPSG:3857');
     marker1.setCoordinates(coord);
     distance_to_tower();
   }
@@ -425,13 +425,13 @@
   }
 
   function add_marker(location1) {
-    var coord1 = ol.proj.transform(location1, 'EPSG:4326', 'EPSG:3857'); 
+    var coord1 = ol.proj.transform(location1, 'EPSG:4326', 'EPSG:3857');
 
     var customer_styleMarker = new ol.style.Style({
       image: new ol.style.Icon({
         scale: .7,
         anchor: [0.5, 1],
-        src: '//raw.githubusercontent.com/jonataswalker/map-utils/master/images/marker.png'
+        src: '/wikk_icons/wifi-pin-000000.gif'
       })
     });
 
@@ -458,14 +458,14 @@
       geo_coord = ol.proj.transform(marker1.getCoordinates(), 'EPSG:3857', 'EPSG:4326');
       set_site_coord(geo_coord[1], geo_coord[0]);
     });
-            
+
     map.on('pointermove', function(e) {
       if (e.dragging) return;
       var hit = map.hasFeatureAtPixel(map.getEventPixel(e.originalEvent));
       map.getTargetElement().style.cursor = hit ? 'pointer' : '';
     });
   }
-  
+
   function create_icon(name, image, location) {
     var iconFeature = new ol.Feature({
       geometry: new ol.geom.Point(ol.proj.transform(location, 'EPSG:4326', 'EPSG:3857')),
@@ -512,7 +512,7 @@
           url: 'http://tiles-a.data-cdn.linz.govt.nz/services;key=f8438294f501437698e278e3d57740ec/tiles/v4/set=4769/EPSG:3857/{z}/{x}/{y}.png'
           })
         }),
-        vectorLayer, 
+        vectorLayer,
         markers_vector_layer
       ],
       view: new ol.View({
@@ -537,7 +537,7 @@
       window.tower_locations[s] = create_icon(tower_site_list[s].site_name, '/wikk_icons/wifi64-blue.png', [ parseFloat(tower_site_list[s].longitude), parseFloat(tower_site_list[s].latitude) ] );
     }
   }
-  
+
   function tower_completion(tower_site_list, select_id_array) {
     for(var s in select_id_array) {
       for(var o in select_id_array[s].options) {
@@ -556,8 +556,8 @@
 
   function setup_site_select_dropdowns() {
     var distribution_select = document.getElementById('distribution');
-    
-    add_optgroup_label(distribution_select, '--- Towers --- ')    
+
+    add_optgroup_label(distribution_select, '--- Towers --- ')
     wikk_distribution.get_site_list( [ distribution_select ], true, tower_completion_handler );
   }
 
@@ -566,7 +566,7 @@
     add_marker([174.48292440317474, -36.99021157393148]);
     setup_site_select_dropdowns();
   }
-  
+
 </script>
 
 
@@ -594,7 +594,7 @@
   	         </datalist>
   	      </form>
   	    </td>
-  	    <td> 
+  	    <td>
         	<form id="customer2" method="get" action="">
   	        <input type="submit" name="submit" value="New" onclick="create_user(); return false;">
   	        <input type="submit" name="submit" value="Save" onclick="save_all(); return false;">
@@ -656,7 +656,7 @@
   	  <tr>
   	    <td>&nbsp;</td>
         <td><b>Antenna Height</b><input type="text" id="site_height" name="customer.site_height" width="16"></td>
-        <td><b>Distance</b>&nbsp;<span id=horizontal_distance>-</span>m</td> 	      
+        <td><b>Distance</b>&nbsp;<span id=horizontal_distance>-</span>m</td>
 	    </tr>
   	  <tr>
   	    <th>Site Comment</th>
