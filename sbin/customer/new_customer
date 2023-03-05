@@ -15,6 +15,7 @@ def parse_args(argv: ARGV)
     debug: false,
     update: false,
     argv: [],
+    link: 0,
     lat: -36.988197841057804, # Beach, so at least it is easy to find on the map
     long: 174.47384965188704,
     height: 3                 # Wild guess

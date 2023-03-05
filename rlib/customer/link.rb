@@ -5,14 +5,10 @@
 # @param sql [WIKK::SQL.connection] DB fd
 # @return [Integer] Link with the least sites
 def calculate_link(sql:)
-  links = {}
-  query = <<~SQL
-    SELECT link, count(*) AS n FROM customer WHERE active = 1 GROUP BY link
+  res = sql.query_hash <<~SQL
+    SELECT link, count(*) AS n FROM customer WHERE active = 1 and link != 0 GROUP BY link ORDER BY n LIMIT 1
   SQL
-  sql.each_hash(query) do |row|
-    links[row['link']] = row['n'].to_i if row['link'] != '0' # ignore the disabled line
-  end
-  raise 'calculate_link(): Failed to find link' if links.length == 0
+  raise 'calculate_link(): Failed to find link' if res.nil? || res.length == 0 # should never happen
 
-  return links.to_a.min_by { |_k, v| v }[0] # Convert hash array, find the min value, return key of this value.
+  return res.first['link'].to_i # there should only be 1 row returned.
 end
