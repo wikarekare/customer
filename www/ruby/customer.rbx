@@ -148,8 +148,9 @@ end
 @longitude = CGI.escapeHTML(@cgi['longitude'])
 
 begin
-  @authenticated = WIKK::Web_Auth.authenticated?(@cgi)
-rescue Exception => e
+  pstore_conf = JSON.parse(PSTORE_CONF)
+  @authenticated = WIKK::Web_Auth.authenticated?(@cgi, pstore_config: pstore_conf)
+rescue Exception => _e # rubocop:disable Lint/RescueException
   @authenticated = false
 end
 
