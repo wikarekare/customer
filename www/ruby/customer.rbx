@@ -3,6 +3,7 @@ require 'cgi'
 require 'wikk_web_auth'
 require 'wikk_configuration'
 require 'wikk_sql'
+require 'json'
 
 RLIB = '/wikk/rlib' unless defined? RLIB
 require_relative "#{RLIB}/wikk_conf.rb"
@@ -148,7 +149,7 @@ end
 @longitude = CGI.escapeHTML(@cgi['longitude'])
 
 begin
-  pstore_conf = JSON.parse(PSTORE_CONF)
+  pstore_conf = JSON.parse(File.read(PSTORE_CONF))
   @authenticated = WIKK::Web_Auth.authenticated?(@cgi, pstore_config: pstore_conf)
 rescue Exception => _e # rubocop:disable Lint/RescueException
   @authenticated = false
