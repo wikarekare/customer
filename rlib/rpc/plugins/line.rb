@@ -16,10 +16,10 @@
 #   PRIMARY KEY (`line_id`),
 #   UNIQUE KEY `site_name` (`site_name`)
 # );
-
+#
 class Line < RPC
-  def initialize(authenticated = false)
-    super(authenticated)
+  def initialize(cgi, authenticated = false)
+    super(cgi, authenticated)
     if authenticated
       @select_acl = [ 'line_id', 'site_name', 'line_number', 'site_address', 'latitude', 'longitude', 'comment', 'active', 'installation', 'termination', 'external_account_name', 'external_supplier', 'external_ipv4' ]
       @result_acl = @select_acl

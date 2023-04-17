@@ -20,11 +20,11 @@
 #   PRIMARY KEY (`customer_id`),
 #   UNIQUE KEY `site_name` (`site_name`)
 # );
-
+#
 # Customer focused RPC calls
 class Customer < RPC
-  def initialize(authenticated = false)
-    super(authenticated)
+  def initialize(cgi, authenticated = false)
+    super(cgi, authenticated)
     if authenticated
       @select_acl = [ 'customer_id', 'name', 'site_name', 'site_address', 'latitude', 'longitude', 'height',
                       'link', 'active', 'comment', 'email', 'mobile', 'telephone',
@@ -207,7 +207,7 @@ class Customer < RPC
   rmethod :plan do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument"
     site_name = select_on['site_name']
     if site_name.nil? || site_name == ''
-      requestor = ENV.fetch('REMOTE_ADDR')
+      requestor = @cgi.env['REMOTE_ADDR']
       # Early filter: Is this one of our sites?
       raise 'Not Local' if requestor !~ /^10\..+$/
 

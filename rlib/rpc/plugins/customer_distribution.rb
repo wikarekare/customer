@@ -6,10 +6,9 @@
 # ) ;
 #
 # Changing the distribution site also implies a change in IP address range, as we simplified routing by having an IP range to allocate site ranges from, per distribution site.
-
 class Customer_Distribution < RPC
-  def initialize(authenticated = false)
-    super(authenticated)
+  def initialize(cgi, authenticated = false)
+    super(cgi, authenticated)
     customer = Customer.new(authenticated)
     distribution = Distribution.new(authenticated)
     if authenticated
