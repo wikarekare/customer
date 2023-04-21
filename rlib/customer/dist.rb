@@ -78,3 +78,20 @@ def current_tower?(sql:, dist_site_name:, c_site_name:)
   # Only interested in the number of rows returned
   return sql.affected_rows != 0
 end
+
+# Return the distribution site associate with a specific dns_subnet_id
+# @param dns_subnet_id [String|Integer] The dns_subnet table id
+# return [String] Distribution site name or nil
+def distribution_site_name(dns_subnet_id:)
+  res = sql.query_hash <<~SQL
+    SELECT d.site_name as site_name
+    FROM dns_subnet AS ds, dns_network AS dn, distribution AS d
+    WHERE ds.dns_subnet_id = #{dns_subnet_id}
+    AND ds.dns_network_id = dn.dns_network_id
+    AND dn.distribution_id = d.distribution_id
+  SQL
+  # No match shouldn't happen, with a valid dns_subnet_id
+  return nil if res.nil? || res.length == 0
+
+  return res.first['site_name'].to_i # there should only be 1 result returned.
+end
