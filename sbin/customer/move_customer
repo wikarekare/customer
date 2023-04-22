@@ -33,6 +33,15 @@ def parse_args(argv: ARGV)
         options[:subnet_id] = subnet
       end
 
+      opts.on('--activate', 'Ensure customer is marked as active') do
+        options[:activate] = true
+      end
+
+      opts.on('--line=LINE', String, 'shift customer to this line. (Implies --activate') do |line|
+        options[:line] = line
+        options[:activate] = true
+      end
+
       # No argument, shows at tail.  This will print an options summary.
       opts.on_tail('-h', '--help', 'Show this message') do
         puts opts
@@ -72,5 +81,5 @@ end
 
 mysql_conf = WIKK::Configuration.new(MYSQL_CONF)
 WIKK::SQL.connect(mysql_conf) do |sql_fd|
-  move_customer(sql: sql_fd, dist_site_name: args[:distribution], c_site_name: args[:site], dns_subnet_id: args[:subnet_id])
+  move_customer(sql: sql_fd, dist_site_name: args[:distribution], c_site_name: args[:site], dns_subnet_id: args[:subnet_id], activate: args[:activate], line: args[:line])
 end
