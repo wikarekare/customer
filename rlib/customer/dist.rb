@@ -82,7 +82,7 @@ end
 # Return the distribution site associate with a specific dns_subnet_id
 # @param dns_subnet_id [String|Integer] The dns_subnet table id
 # return [String] Distribution site name or nil
-def distribution_site_name(dns_subnet_id:)
+def distribution_site_name(sql:, dns_subnet_id:)
   res = sql.query_hash <<~SQL
     SELECT d.site_name as site_name
     FROM dns_subnet AS ds, dns_network AS dn, distribution AS d
