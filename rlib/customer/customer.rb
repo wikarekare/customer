@@ -134,11 +134,20 @@ def set_customer_inactive(sql:, site_name:, termination_date: nil)
   end
 end
 
+# Activate the customer account, if it was inactive
+# Ensure the link value is set too.
+# Does nothing, if the account is already active
+# Also does nothing if the link param is 0
+# @param sql [WIKK::SQL] DB connection instance
+# @param site_name [String] Customer table site_name field
+# @param link [Integer|String] the line assigned to the customer
 def activate_customer(sql:, site_name:, link:)
+  return if link == 0
+
   sql.query <<~SQL
     UPDATE customer
       SET active=1, link=#{link}, termination=NULL
-      WHERE site_name = '#{site_name}'
+      WHERE site_name = '#{site_name}' && active == 0
   SQL
 end
 
@@ -183,6 +192,7 @@ def move_customer(sql:, c_site_name:, dist_site_name: nil, dns_subnet_id: nil, a
   retire_existing_dns_subnet(sql: sql, c_site_name: c_site_name, new_dns_subnet_id: dns_subnet_id)
   activate_dns_subnet(sql: sql, c_site_name: c_site_name, dns_subnet_id: dns_subnet_id)
   if activate
+    # Explicitly asked to activate customer account.
     line ||= calculate_link(sql: sql) # pick a line, if we aren't given one.
     activate_customer(sql: sql, site_name: c_site_name, link: line)
   end
