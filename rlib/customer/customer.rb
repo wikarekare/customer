@@ -134,14 +134,38 @@ def set_customer_inactive(sql:, site_name:, termination_date: nil)
   end
 end
 
+def activate_customer(sql:, site_name:, link:)
+  sql.query <<~SQL
+    UPDATE customer
+      SET active=1, link=#{link}, termination=NULL
+      WHERE site_name = '#{site_name}'
+  SQL
+end
+
 # Change the distribution_id in the 'customer_distribution' table
 # Allocate (or reuse) a dns_subnet
-# Add ar update 'customer_dns_subnet' record
+# Updates 'customer_dns_subnet' record, Moving to a new Distribution tower
 # A pf table update will get triggered via the regular cron job
 # Need to 'make new' in /wikk/etc/namebd/wikarekare to update DNS
-def move_customer(sql:, dist_site_name:, c_site_name:, dns_subnet_id: nil)
+def move_customer(sql:, c_site_name:, dist_site_name: nil, dns_subnet_id: nil, activate: false, line: nil)
+  if dist_site_name.nil?
+    if dns_subnet_id.nil?
+      warn('move_customer() We need either the new distribution site_name or the dns_subnet_id')
+      return
+    end
+    dist_site_name = distribution_site_name(sql: sql, dns_subnet_id: dns_subnet_id)
+    if dist_site_name.nil?
+      warn("move_customer() dns_subnet_id #{dns_subnet_id} not valid")
+      return
+    end
+  elsif !dns_subnet_id.nil? && dist_site_name != (ds_sitename = distribution_site_name(sql: sql, dns_subnet_id: dns_subnet_id))
+    # Check the subnet is correct for this distribution site
+    warn("move_customer() Given conflicting data. dns_subnet #{dns_subnet_id} is not in #{dist_site_name}. It is in #{ds_sitename}")
+    return
+  end
+
   if current_tower?(sql: sql, dist_site_name: dist_site_name, c_site_name: c_site_name)
-    warn("#{c_site_name} already using distribution tower #{dist_site_name}")
+    warn("move_customer(#{c_site_name}) already using distribution tower #{dist_site_name}")
     return
   end
 
@@ -151,13 +175,17 @@ def move_customer(sql:, dist_site_name:, c_site_name:, dns_subnet_id: nil)
   dns_subnet_id ||= first_free_dnssubnet(sql: sql, dist_site_name: dist_site_name)
 
   if dns_subnet_id.nil?
-    warn('Unable to allocate dns subnet')
+    warn('move_customer() Unable to allocate dns subnet')
     return
   end
 
   set_customer_distribution(sql: sql, dist_site_name: dist_site_name, c_site_name: c_site_name)
   retire_existing_dns_subnet(sql: sql, c_site_name: c_site_name, new_dns_subnet_id: dns_subnet_id)
   activate_dns_subnet(sql: sql, c_site_name: c_site_name, dns_subnet_id: dns_subnet_id)
+  if activate
+    line ||= calculate_link(sql: sql) # pick a line, if we aren't given one.
+    activate_customer(sql: sql, site_name: c_site_name, link: line)
+  end
 
   gen_site_dns_hosts_query(distribution_site_name: dist_site_name, site_name: c_site_name, dns_subnet_id: dns_subnet_id, subnet_size: 32, update: false)
   return
