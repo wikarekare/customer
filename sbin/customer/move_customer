@@ -37,9 +37,9 @@ def parse_args(argv: ARGV)
         options[:activate] = true
       end
 
-      opts.on('--line=LINE', String, 'shift customer to this line. (Implies --activate') do |line|
+      opts.on('--line=LINE', Integer, 'Optionally shift customer to this line. (Implies --activate') do |line|
         options[:line] = line
-        options[:activate] = true
+        options[:activate] = line > 0
       end
 
       # No argument, shows at tail.  This will print an options summary.
