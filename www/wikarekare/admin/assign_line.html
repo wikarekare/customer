@@ -65,7 +65,8 @@
               "set": { "link": site_input.value },
               "result": []
             },
-            "version": 1.1
+            "id": Date.getTime(),
+            "jsonrpc": 2.0
           }
           url = "/ruby/rpc.rbx"
           wikk_ajax.ajax_post_call(url, args, site_value_change_callback, site_value_change_error, site_value_change_completion, 'json', true)
@@ -100,7 +101,8 @@
           "set": { }, //no fields to update in a GET
           "result": ["site_name", "link"]
         },
-        "version": 1.1
+        "id": Date.getTime(),
+        "jsonrpc": 2.0
       }
       url = "/ruby/rpc.rbx"
       wikk_ajax.delayed_ajax_post_call(url, args, get_customers_callback, get_customers_error, get_customers_completion, 'json', true, delay)
@@ -131,7 +133,8 @@
           "set": { }, //no fields to update in a GET
           "result": ["line_number"]
         },
-        "version": 1.1
+        "id": Date.getTime(),
+        "jsonrpc": 2.0
       }
       url = "/ruby/rpc.rbx"
       wikk_ajax.delayed_ajax_post_call(url, args, get_lines_callback, get_lines_error, get_lines_completion, 'json', true, delay)

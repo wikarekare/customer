@@ -32,7 +32,8 @@ var wikk_customer_networks = ( function() {
         "set": null,
         "result": ['network', 'dhcp_start', 'dhcp_end', 'gateway', 'netmask', 'state', 'tower' ]
       },
-      "version": 1.1
+      "id": Date.getTime(),
+      "jsonrpc": 2.0
     }
 
     url = "/ruby/rpc.rbx"

@@ -45,7 +45,8 @@ var wikk_customer = ( function() {
                    'link', 'active', 'comment', 'email', 'mobile', 'telephone', 'plan', 'billing_name',
                    'billing_address', 'connected', 'termination', 'net_node_interface_id' ]
       },
-      "version": 1.1
+      "id": Date.getTime(),
+      "jsonrpc": 2.0
     }
 
     url = "/ruby/rpc.rbx"
@@ -66,7 +67,8 @@ var wikk_customer = ( function() {
                    'link', 'active', 'comment', 'email', 'mobile', 'telephone', 'plan', 'billing_name',
                    'billing_address', 'connected', 'termination', 'net_node_interface_id' ]
       },
-      "version": 1.1
+      "id": Date.getTime(),
+      "jsonrpc": 2.0
     }
 
     url = "/ruby/rpc.rbx"
@@ -87,7 +89,8 @@ var wikk_customer = ( function() {
                    'link', 'active', 'comment', 'email', 'mobile', 'telephone', 'plan', 'billing_name',
                    'billing_address', 'connected', 'termination', 'net_node_interface_id' ]
       },
-      "version": 1.1
+      "id": Date.getTime(),
+      "jsonrpc": 2.0
     }
 
     url = "/ruby/rpc.rbx"
@@ -131,7 +134,8 @@ var wikk_customer = ( function() {
         "set": null,
         "result": ['site_name', 'name', 'latitude', 'longitude', 'height', 'site_address']
       },
-      "version": 1.1
+      "id": Date.getTime(),
+      "jsonrpc": 2.0
     }
 
     url = "/ruby/rpc.rbx"
@@ -181,7 +185,8 @@ var wikk_customer = ( function() {
         "set": null,              //blank, then no fields to update in a GET
         "result": []
       },
-      "version": 1.1
+      "id": Date.getTime(),
+      "jsonrpc": 2.0
     }
 
     url = "/ruby/rpc.rbx"
