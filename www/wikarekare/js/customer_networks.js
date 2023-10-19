@@ -26,7 +26,7 @@ var wikk_customer_networks = ( function() {
 
     var args = {
       "method": "Customer.networks",
-      "kwparams": {
+      "params": {
         "select_on": { "site_name": site_name },
         "orderby": null,
         "set": null,

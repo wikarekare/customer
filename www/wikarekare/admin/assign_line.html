@@ -60,7 +60,7 @@
           //alert("Changed " + site_input.name + " to line " + site_input.value);
           var args = {
             "method": "Customer.update",
-            "kwparams": {
+            "params": {
               "select_on": { "site_name": site_input.name },
               "set": { "link": site_input.value },
               "result": []
@@ -95,7 +95,7 @@
     function get_customers(delay) {
       var args = {
         "method": "Customer.read",
-        "kwparams": {
+        "params": {
           "select_on": { "active": "1" }, //every active site
           "order_by": ['site_name'],
           "set": { }, //no fields to update in a GET
@@ -127,7 +127,7 @@
       //alert(site_input.name + " " + site_input.value);
       var args = {
         "method": "Line.read",
-        "kwparams": {
+        "params": {
           "select_on": { "active": "1" }, //every active line
           "order_by": ['line_number'],
           "set": { }, //no fields to update in a GET

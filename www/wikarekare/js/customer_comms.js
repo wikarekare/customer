@@ -37,7 +37,7 @@ var wikk_customer = ( function() {
 
     var args = {
       "method": "Customer.find_by_site_name",
-      "kwparams": {
+      "params": {
         "select_on": { "site_name": site_name },
         "orderby": null,
         "set": null,
@@ -59,7 +59,7 @@ var wikk_customer = ( function() {
 
     var args = {
       "method": "Customer.find_by_site_address",
-      "kwparams": {
+      "params": {
         "select_on": { "site_address": site_address, "active": active },
         "orderby": null,
         "set": null,
@@ -81,7 +81,7 @@ var wikk_customer = ( function() {
 
     var args = {
       "method": "Customer.find_by_name",
-      "kwparams": {
+      "params": {
         "select_on": { "name": name, "active": active },
         "orderby": null,
         "set": null,
@@ -128,7 +128,7 @@ var wikk_customer = ( function() {
 
     var args = {
       "method": "Customer.read",
-      "kwparams": {
+      "params": {
         "select_on": { "active": 1 },
         "orderby": null,
         "set": null,
@@ -179,7 +179,7 @@ var wikk_customer = ( function() {
 
     var args = {
       "method": "Customer.plan",
-      "kwparams": {
+      "params": {
         "select_on": { "site_name": site_name },  //every active line
         "orderby": null,
         "set": null,              //blank, then no fields to update in a GET
