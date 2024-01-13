@@ -1,7 +1,7 @@
 <html>
 <head>
   <title>Assign Line</title>
-  <script src="/js/jquery-3.0.0.min.js"></script>
+  <script src="/js/jquery-3.7.1.min.js"></script>
   <script src="/js/wikk_ajax-min.js"></script>
   <script src="/js/wikk_web_auth-min.js"></script>
   <script>
@@ -68,7 +68,7 @@
             "id": Date.getTime(),
             "jsonrpc": 2.0
           }
-          url = "/ruby/rpc.rbx"
+          url = RPC
           wikk_ajax.ajax_post_call(url, args, site_value_change_callback, site_value_change_error, site_value_change_completion, 'json', true)
         }
       }
@@ -104,7 +104,7 @@
         "id": Date.getTime(),
         "jsonrpc": 2.0
       }
-      url = "/ruby/rpc.rbx"
+      url = RPC
       wikk_ajax.delayed_ajax_post_call(url, args, get_customers_callback, get_customers_error, get_customers_completion, 'json', true, delay)
       return false;
     }
@@ -136,7 +136,7 @@
         "id": Date.getTime(),
         "jsonrpc": 2.0
       }
-      url = "/ruby/rpc.rbx"
+      url = RPC
       wikk_ajax.delayed_ajax_post_call(url, args, get_lines_callback, get_lines_error, get_lines_completion, 'json', true, delay)
     }
 

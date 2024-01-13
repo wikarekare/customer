@@ -49,7 +49,7 @@ var wikk_customer = ( function() {
       "jsonrpc": 2.0
     }
 
-    url = "/ruby/rpc.rbx"
+    url = RPC
     wikk_ajax.delayed_ajax_post_call(url, args, site_find_callback, site_list_error, site_find_completion, 'json', true, 0);
   }
 
@@ -71,7 +71,7 @@ var wikk_customer = ( function() {
       "jsonrpc": 2.0
     }
 
-    url = "/ruby/rpc.rbx"
+    url = RPC
     wikk_ajax.delayed_ajax_post_call(url, args, site_find_callback, site_list_error, site_find_completion, 'json', true, 0);
   }
 
@@ -93,7 +93,7 @@ var wikk_customer = ( function() {
       "jsonrpc": 2.0
     }
 
-    url = "/ruby/rpc.rbx"
+    url = RPC
     wikk_ajax.delayed_ajax_post_call(url, args, site_find_callback, site_list_error, site_find_completion, 'json', true, 0);
   }
 
@@ -138,7 +138,7 @@ var wikk_customer = ( function() {
       "jsonrpc": 2.0
     }
 
-    url = "/ruby/rpc.rbx"
+    url = RPC
     wikk_ajax.delayed_ajax_post_call(url, args, site_list_callback, site_list_error, site_list_completion, 'json', true, 0);
   }
 
@@ -189,7 +189,7 @@ var wikk_customer = ( function() {
       "jsonrpc": 2.0
     }
 
-    url = "/ruby/rpc.rbx"
+    url = RPC
     wikk_ajax.delayed_ajax_post_call(url, args, plan_callback, plan_error, plan_completion, 'json', true, delay);
     return false;
   }

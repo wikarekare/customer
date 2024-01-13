@@ -36,7 +36,7 @@ var wikk_customer_networks = ( function() {
       "jsonrpc": 2.0
     }
 
-    url = "/ruby/rpc.rbx"
+    url = RPC
     wikk_ajax.delayed_ajax_post_call(url, args, networks_callback, networks_error, networks_completion, 'json', true, 0);
   }
 
