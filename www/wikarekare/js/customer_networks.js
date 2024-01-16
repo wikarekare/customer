@@ -32,11 +32,11 @@ var wikk_customer_networks = ( function() {
         "set": null,
         "result": ['network', 'dhcp_start', 'dhcp_end', 'gateway', 'netmask', 'state', 'tower' ]
       },
-      "id": Date.getTime(),
+      "id": new Date().getTime(),
       "jsonrpc": 2.0
     }
 
-    url = RPC
+    url = RPC_URL
     wikk_ajax.delayed_ajax_post_call(url, args, networks_callback, networks_error, networks_completion, 'json', true, 0);
   }
 

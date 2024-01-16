@@ -9,8 +9,8 @@
 # ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 #
 class Plan < RPC
-  def initialize(cgi, authenticated = false)
-    super(cgi, authenticated)
+  def initialize(cgi:, authenticated: false)
+    super(cgi: cgi, authenticated: authenticated)
     if authenticated # Same as unauthenticated for the moment.
       @select_acl = [ 'plan_id', 'base_gb', 'extended_gb', 'base_price', 'extended_unit_price', 'excess_unit_price', 'plan_name', 'free_rate' ] # rubocop:disable Style/IdenticalConditionalBranches
       @result_acl = @select_acl

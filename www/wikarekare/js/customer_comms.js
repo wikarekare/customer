@@ -45,11 +45,11 @@ var wikk_customer = ( function() {
                    'link', 'active', 'comment', 'email', 'mobile', 'telephone', 'plan', 'billing_name',
                    'billing_address', 'connected', 'termination', 'net_node_interface_id' ]
       },
-      "id": Date.getTime(),
+      "id": new Date().getTime(),
       "jsonrpc": 2.0
     }
 
-    url = RPC
+    url = RPC_URL
     wikk_ajax.delayed_ajax_post_call(url, args, site_find_callback, site_list_error, site_find_completion, 'json', true, 0);
   }
 
@@ -67,11 +67,11 @@ var wikk_customer = ( function() {
                    'link', 'active', 'comment', 'email', 'mobile', 'telephone', 'plan', 'billing_name',
                    'billing_address', 'connected', 'termination', 'net_node_interface_id' ]
       },
-      "id": Date.getTime(),
+      "id": new Date().getTime(),
       "jsonrpc": 2.0
     }
 
-    url = RPC
+    url = RPC_URL
     wikk_ajax.delayed_ajax_post_call(url, args, site_find_callback, site_list_error, site_find_completion, 'json', true, 0);
   }
 
@@ -89,11 +89,11 @@ var wikk_customer = ( function() {
                    'link', 'active', 'comment', 'email', 'mobile', 'telephone', 'plan', 'billing_name',
                    'billing_address', 'connected', 'termination', 'net_node_interface_id' ]
       },
-      "id": Date.getTime(),
+      "id": new Date().getTime(),
       "jsonrpc": 2.0
     }
 
-    url = RPC
+    url = RPC_URL
     wikk_ajax.delayed_ajax_post_call(url, args, site_find_callback, site_list_error, site_find_completion, 'json', true, 0);
   }
 
@@ -134,11 +134,11 @@ var wikk_customer = ( function() {
         "set": null,
         "result": ['site_name', 'name', 'latitude', 'longitude', 'height', 'site_address']
       },
-      "id": Date.getTime(),
+      "id": new Date().getTime(),
       "jsonrpc": 2.0
     }
 
-    url = RPC
+    url = RPC_URL
     wikk_ajax.delayed_ajax_post_call(url, args, site_list_callback, site_list_error, site_list_completion, 'json', true, 0);
   }
 
@@ -185,11 +185,11 @@ var wikk_customer = ( function() {
         "set": null,              //blank, then no fields to update in a GET
         "result": []
       },
-      "id": Date.getTime(),
+      "id": new Date().getTime(),
       "jsonrpc": 2.0
     }
 
-    url = RPC
+    url = RPC_URL
     wikk_ajax.delayed_ajax_post_call(url, args, plan_callback, plan_error, plan_completion, 'json', true, delay);
     return false;
   }

@@ -23,8 +23,8 @@
 #
 # Customer focused RPC calls
 class Customer < RPC
-  def initialize(cgi, authenticated = false)
-    super(cgi, authenticated)
+  def initialize(cgi:, authenticated: false)
+    super(cgi: cgi, authenticated: authenticated)
     if authenticated
       @select_acl = [ 'customer_id', 'name', 'site_name', 'site_address', 'latitude', 'longitude', 'height',
                       'link', 'active', 'comment', 'email', 'mobile', 'telephone',
