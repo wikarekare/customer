@@ -5,8 +5,10 @@
 require 'wikk_sql'
 require 'wikk_configuration'
 require 'fileutils'
-RLIB = '/wikk/rlib' unless defined? RLIB
-require_relative "#{RLIB}/wikk_conf.rb"
+
+unless defined? WIKK_CONF
+  load '/wikk/etc/wikk.conf'
+end
 
 # Fetch all sites network ip addresses (some may have had more than one, if they shifted distribution sites)
 def fetch_customer_networks

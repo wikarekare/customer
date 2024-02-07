@@ -5,8 +5,9 @@ require 'wikk_configuration'
 require 'wikk_sql'
 require 'json'
 
-RLIB = '/wikk/rlib' unless defined? RLIB
-require_relative "#{RLIB}/wikk_conf.rb"
+unless defined? WIKK_CONF
+  load '/wikk/etc/wikk.conf'
+end
 
 def to_json_by_site(active)
   begin
