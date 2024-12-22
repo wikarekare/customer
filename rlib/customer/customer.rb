@@ -147,7 +147,7 @@ def activate_customer(sql:, site_name:, link:)
   sql.query <<~SQL
     UPDATE customer
       SET active=1, link=#{link}, termination=NULL
-      WHERE site_name = '#{site_name}' && active == 0
+      WHERE site_name = '#{site_name}' && active = 0
   SQL
 end
 
