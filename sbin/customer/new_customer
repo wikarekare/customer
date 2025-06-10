@@ -5,9 +5,7 @@ require 'optparse'
 require 'optparse/time'
 
 
-unless defined? WIKK_CONF
-  load '/wikk/etc/wikk.conf'
-end
+load '/wikk/etc/wikk.conf' unless defined? WIKK_CONF
 require_relative "#{RLIB}/customer/customer.rb"
 
 VERSION = '1.1.0'
@@ -26,19 +24,19 @@ def parse_args(argv: ARGV)
     @opt_parser = OptionParser.new(ARGV) do |opts|
       opts.banner = "Usage: #{$PROGRAM_NAME} [options]"
 
-      opts.on('--site=SITE', String, 'Customer site name (Automatic, if not provided)') do |site|
+      opts.on('--site=SITE', '--site_name=SITE', String, 'Customer site name (Automatic, if not provided)') do |site|
         options[:site] = site
       end
 
-      opts.on('--date=DATE', String, 'Connection date') do |date|
+      opts.on('--date=DATE', '--connection_date=DATE', String, 'Connection date') do |date|
         options[:date] = date
       end
 
-      opts.on('--address=ADDRESS', String, 'Site Address') do |address|
+      opts.on('--address=ADDRESS', '--site_address=ADDRESS', String, 'Site Address') do |address|
         options[:address] = address
       end
 
-      opts.on('--name=NAME', String, 'Customer Name') do |name|
+      opts.on('--name=NAME', '--customer_name=NAME', String, 'Customer Name') do |name|
         options[:name] = name
       end
 
@@ -62,11 +60,11 @@ def parse_args(argv: ARGV)
         options[:email] = email
       end
 
-      opts.on('--lat=LAT', String, 'Customer Router Latitude') do |lat|
+      opts.on('--lat=LAT', '--latitude=LAT', String, 'Customer Router Latitude') do |lat|
         options[:lat] = lat
       end
 
-      opts.on('--long=LONG', String, 'Customer Router Longitude') do |long|
+      opts.on('--long=LONG', '--longitude=LONG', String, 'Customer Router Longitude') do |long|
         options[:long] = long
       end
 
@@ -74,7 +72,7 @@ def parse_args(argv: ARGV)
         options[:height] = height
       end
 
-      opts.on('--line=LINE', String, 'Which external line to use (Automatic, if not provided)') do |line|
+      opts.on('--line=LINE', '--link=LINE', String, 'Which external line to use (Automatic, if not provided)') do |line|
         options[:link] = line
       end
 
