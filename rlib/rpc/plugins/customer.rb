@@ -209,7 +209,7 @@ class Customer < RPC
     if site_name.nil? || site_name == ''
       requestor = @cgi.env['REMOTE_ADDR']
       # Early filter: Is this one of our sites?
-      raise 'Not Local' if requestor !~ /^10\..+$/
+      raise 'Not Local' unless requestor =~ /^10\..+$/ || requester =~ /^100\.64\.0\..+$/
 
       site_name = get_site_name(site_address: requestor)
       if site_name.nil? || hostname == ''
