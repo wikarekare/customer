@@ -7,9 +7,7 @@ require 'wikk_sql'
 require 'wikk_configuration'
 
 
-unless defined? WIKK_CONF
-  load '/wikk/etc/wikk.conf'
-end
+load '/wikk/etc/wikk.conf' unless defined? WIKK_CONF
 require_relative "#{RLIB}/customer/customer.rb"
 
 VERSION = '1.1.1'

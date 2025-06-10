@@ -5,10 +5,7 @@
 require 'wikk_sql'
 require 'wikk_configuration'
 require 'fileutils'
-
-unless defined? WIKK_CONF
-  load '/wikk/etc/wikk.conf'
-end
+load '/wikk/etc/wikk.conf' unless defined? WIKK_CONF
 
 # Fetch all sites network ip addresses (some may have had more than one, if they shifted distribution sites)
 def fetch_customer_networks

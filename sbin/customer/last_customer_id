@@ -3,9 +3,7 @@ require 'wikk_configuration'
 require 'wikk_sql'
 
 
-unless defined? WIKK_CONF
-  load '/wikk/etc/wikk.conf'
-end
+load '/wikk/etc/wikk.conf' unless defined? WIKK_CONF
 require_relative "#{RLIB}/customer/customer.rb"
 
 @mysql_conf = WIKK::Configuration.new(MYSQL_CONF)

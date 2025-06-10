@@ -5,9 +5,7 @@ require 'wikk_configuration'
 require 'wikk_sql'
 require 'json'
 
-unless defined? WIKK_CONF
-  load '/wikk/etc/wikk.conf'
-end
+load '/wikk/etc/wikk.conf' unless defined? WIKK_CONF
 
 def to_json_by_site(active)
   begin
