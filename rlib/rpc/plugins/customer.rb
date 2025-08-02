@@ -39,11 +39,11 @@ class Customer < RPC
     end
   end
 
-  rmethod :create do |select_on: nil, set: nil, result: nil, **args| # rubocop:disable Lint/UnusedBlockArgument"
+  rmethod :create do |select_on: nil, set: nil, result: nil, **args| # rubocop:disable Lint/UnusedBlockArgument
     # new customer record
   end
 
-  rmethod :read do |select_on: nil, set: nil, result: nil, order_by: nil, **_args| # rubocop:disable Lint/UnusedBlockArgument"
+  rmethod :read do |select_on: nil, set: nil, result: nil, order_by: nil, **_args| # rubocop:disable Lint/UnusedBlockArgument
     # Pull data about customer
     where_string = to_where(select_on: select_on, acceptable_list: @select_acl)
     select_string = to_result(result: result, acceptable_list: @result_acl)
@@ -52,7 +52,7 @@ class Customer < RPC
   end
 
   # Wild card find a customer by site name
-  rmethod :find_by_site_name do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument"
+  rmethod :find_by_site_name do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     select_string = to_result(result: result, acceptable_list: @result_acl)
     order_by_string = to_order(order_by: order_by, acceptable_list: @result_acl)
     where_string = if select_on['active'].nil?
@@ -69,7 +69,7 @@ class Customer < RPC
   end
 
   # Wild card find a customer(s) by site address
-  rmethod :find_by_site_address do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument"
+  rmethod :find_by_site_address do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     select_string = to_result(result: result, acceptable_list: @result_acl)
     order_by_string = to_order(order_by: order_by, acceptable_list: @result_acl)
     where_string = <<~SQL
@@ -80,7 +80,7 @@ class Customer < RPC
   end
 
   # Wild card find a customer by name
-  rmethod :find_by_name do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument"
+  rmethod :find_by_name do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     select_string = to_result(result: result, acceptable_list: @result_acl)
     order_by_string = to_order(order_by: order_by, acceptable_list: @result_acl)
     where_string = <<~SQL
@@ -90,7 +90,7 @@ class Customer < RPC
     return sql_single_table_select(table: 'customer', select: select_string, where: where_string, order_by: order_by_string)
   end
 
-  rmethod :update do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument"
+  rmethod :update do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     # change user fields
     where_string = to_where(select_on: select_on, acceptable_list: @select_acl)
     set_string = to_set(set: set, acceptable_list: @set_acl)
@@ -99,11 +99,11 @@ class Customer < RPC
     return sql_single_table_update(table: 'customer', set: set_string, where: where_string)
   end
 
-  rmethod :delete do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument"
+  rmethod :delete do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     # We don't actually do this.
   end
 
-  rmethod :distribution_site_clients do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument"
+  rmethod :distribution_site_clients do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     query = <<~SQL
       SELECT distribution.site_name as d_site_name, customer.site_name as c_site_name
       FROM distribution, customer_distribution, customer
@@ -123,7 +123,7 @@ class Customer < RPC
     return { 'rows' => rows, 'affected_rows' => affected_rows }
   end
 
-  rmethod :distribution_site do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument"
+  rmethod :distribution_site do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     site_clause = select_on != nil && (site_name = select_on['site_name']) != nil ? "customer.site_name = \"#{site_name}\" and " : ''
     if result != nil && result.length > 0
       customer_distribution = Customer_Distribution.new(@authenticated)
@@ -149,7 +149,7 @@ class Customer < RPC
     return group_by_table(sql_response: response, primary_table_key: 'customer.site_name', secondary_table: 'distribution')
   end
 
-  rmethod :hosts do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument"
+  rmethod :hosts do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     raise 'Not Authenticated' unless @authenticated
 
     acceptable_list(list: select_on, acceptable_list: [ 'site_name', 'state' ])
@@ -180,7 +180,7 @@ class Customer < RPC
                                   )
   end
 
-  rmethod :networks do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument"
+  rmethod :networks do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     raise 'Not Authenticated' unless @authenticated
     raise 'Require site_name' if select_on['site_name'].nil?
 
@@ -204,7 +204,7 @@ class Customer < RPC
   end
 
   # Customer plan
-  rmethod :plan do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument"
+  rmethod :plan do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     site_name = select_on['site_name']
     if site_name.nil? || site_name == ''
       requestor = @cgi.env['REMOTE_ADDR']
