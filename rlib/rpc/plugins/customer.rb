@@ -24,7 +24,7 @@
 # Customer focused RPC calls
 class Customer < RPC
   def initialize(cgi:, authenticated: false)
-    super(cgi: cgi, authenticated: authenticated)
+    super
     if authenticated
       @select_acl = [ 'customer_id', 'name', 'site_name', 'site_address', 'latitude', 'longitude', 'height',
                       'link', 'active', 'comment', 'email', 'mobile', 'telephone',
@@ -132,7 +132,7 @@ class Customer < RPC
       select_string += ',customer.site_name' unless result.include?('customer.site_name')
       select_string += ',distribution.site_name' unless result.include?('distribution.site_name')
     else
-      select_string = 'distribution.site_name, customer.site_name'
+      select_string = 'distribution.site_name as "distribution.site_name", customer.site_name as "customer.site_name"'
     end
     table_list = 'customer, customer_distribution, distribution'
     where_string = <<~SQL
