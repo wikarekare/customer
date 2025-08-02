@@ -128,11 +128,11 @@ class Customer < RPC
     if result != nil && result.length > 0
       customer_distribution = Customer_Distribution.new(@authenticated)
       result_acl = customer_distribution.result_acl
-      select_string = to_result(result: result, acceptable_list: result_acl)
-      select_string += ',customer.site_name' unless result.include?('customer.site_name')
-      select_string += ',distribution.site_name' unless result.include?('distribution.site_name')
+      select_string = to_result(result: result, acceptable_list: result_acl, with_tables: true)
+      select_string += ',customer.site_name AS "customer.site_name"' unless result.include?('customer.site_name')
+      select_string += ',distribution.site_name AS "distribution.site_name"' unless result.include?('distribution.site_name')
     else
-      select_string = 'distribution.site_name as "distribution.site_name", customer.site_name as "customer.site_name"'
+      select_string = 'distribution.site_name AS "distribution.site_name", customer.site_name AS "customer.site_name"'
     end
     table_list = 'customer, customer_distribution, distribution'
     where_string = <<~SQL
@@ -141,11 +141,7 @@ class Customer < RPC
       AND customer_distribution.distribution_id = distribution.distribution_id
       AND distribution.active = 1
     SQL
-    response = sql_single_table_select( table: table_list,
-                                        select: select_string,
-                                        where: where_string,
-                                        with_tables: true
-                                      )
+    response = sql_single_table_select( table: table_list, select: select_string, where: where_string, with_tables: true )
     return group_by_table(sql_response: response, primary_table_key: 'customer.site_name', secondary_table: 'distribution')
   end
 
