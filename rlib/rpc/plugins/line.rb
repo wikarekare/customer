@@ -31,7 +31,7 @@ class Line < RPC
     end
   end
 
-  rmethod :create do |select_on: nil, set: nil, result: nil, **args|  # rubocop:disable Lint/UnusedBlockArgument
+  rmethod :create do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     # new customer record
   end
 
@@ -43,11 +43,11 @@ class Line < RPC
     return sql_single_table_select(table: 'line', select: select_string, where: where_string, order_by: order_by_string)
   end
 
-  rmethod :update do |select_on: nil, set: nil, result: nil, **args|  # rubocop:disable Lint/UnusedBlockArgument
+  rmethod :update do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     # change user fields
   end
 
-  rmethod :delete do |select_on: nil, set: nil, result: nil, **args|  # rubocop:disable Lint/UnusedBlockArgument
+  rmethod :delete do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     # We don't actually do this.
   end
 end

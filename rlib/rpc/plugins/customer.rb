@@ -39,7 +39,7 @@ class Customer < RPC
     end
   end
 
-  rmethod :create do |select_on: nil, set: nil, result: nil, **args| # rubocop:disable Lint/UnusedBlockArgument
+  rmethod :create do |select_on: nil, set: nil, result: nil, order_by: nil, **_args| # rubocop:disable Lint/UnusedBlockArgument
     # new customer record
   end
 

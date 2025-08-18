@@ -28,7 +28,7 @@ class Customer_Distribution < RPC
                 distribution.set_acl.collect { |c| 'distribution.' + c }
   end
 
-  rmethod :create do |select_on: nil, set: nil, result: nil, **args| # rubocop:disable Lint/UnusedBlockArgument
+  rmethod :create do |select_on: nil, set: nil, result: nil, order_by: nil, **_args| # rubocop:disable Lint/UnusedBlockArgument
     # new customer record
   end
 
@@ -40,11 +40,11 @@ class Customer_Distribution < RPC
     return sql_single_table_select(table: 'customer_distribution', select: select_string, where: where_string, order_by: order_by_string, with_tables: true)
   end
 
-  rmethod :update do |select_on: nil, set: nil, result: nil, **args| # rubocop:disable Lint/UnusedBlockArgument
+  rmethod :update do |select_on: nil, set: nil, result: nil, order_by: nil, **_args| # rubocop:disable Lint/UnusedBlockArgument
     # change user fields
   end
 
-  rmethod :delete do |select_on: nil, set: nil, result: nil, **args| # rubocop:disable Lint/UnusedBlockArgument
+  rmethod :delete do |select_on: nil, set: nil, result: nil, order_by: nil, **_args| # rubocop:disable Lint/UnusedBlockArgument
     # We don't actually do this.
   end
 end

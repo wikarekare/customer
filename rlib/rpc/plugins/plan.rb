@@ -22,7 +22,7 @@ class Plan < RPC
     end
   end
 
-  rmethod :create do |select_on: nil, set: nil, result: nil, **args|  # rubocop:disable Lint/UnusedBlockArgument
+  rmethod :create do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     # new plan record
   end
 
@@ -34,7 +34,7 @@ class Plan < RPC
     return sql_single_table_select(table: 'plan', select: select_string, where: where_string, order_by: order_by_string)
   end
 
-  rmethod :update do |select_on: nil, set: nil, result: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
+  rmethod :update do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     # change plan fields
     # change user fields
     where_string = to_where(select_on: select_on, acceptable_list: @select_acl)
@@ -44,7 +44,7 @@ class Plan < RPC
     return sql_single_table_update(table: 'plan', set: set_string, where: where_string)
   end
 
-  rmethod :delete do |select_on: nil, set: nil, result: nil, **args|  # rubocop:disable Lint/UnusedBlockArgument
+  rmethod :delete do |select_on: nil, set: nil, result: nil, order_by: nil, **_args|  # rubocop:disable Lint/UnusedBlockArgument
     # We don't actually do this.
   end
 end
