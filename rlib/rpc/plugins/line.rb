@@ -19,7 +19,7 @@
 #
 class Line < RPC
   def initialize(cgi:, authenticated: false)
-    super(cgi: cgi, authenticated: authenticated)
+    super
     if authenticated
       @select_acl = [ 'line_id', 'site_name', 'line_number', 'site_address', 'latitude', 'longitude', 'comment', 'active', 'installation', 'termination', 'external_account_name', 'external_supplier', 'external_ipv4' ]
       @result_acl = @select_acl
