@@ -5,9 +5,8 @@
 # @param subnet_size [Integer] The number of IP addresses on this subnet
 # @return [String] VALUE lines, for the host IP addresses in the SQL query (excluding the net, router and broadcast)
 private def gen_host_lines(distribution_site_name:, site_name:, dns_subnet_id:, subnet_size:)
-  lines = []
-  (1..subnet_size - 3).each do |i|
-    lines << "( '#{distribution_site_name}-#{site_name}-#{'%02d' % i}', 'A', #{dns_subnet_id}, #{i} ), "
+  lines = Array.new(subnet_size - 3) do |i|
+    "( '#{distribution_site_name}-#{site_name}-#{'%02d' % (i + 1)}', 'A', #{dns_subnet_id}, #{i + 1} ), "
   end
   return lines.join("\n")
 end
@@ -32,11 +31,11 @@ private def gen_site_dns_hosts_query(distribution_site_name:, site_name:, dns_su
   SQL
 end
 
-#+----------------+-----------+------+
+# +----------------+-----------+------+
 # | dist_site_name | subnet_id | size |
-#+----------------+-----------+------+
+# +----------------+-----------+------+
 # | oceanview4     |      1620 |   31 |
-#+----------------+-----------+------+
+# +----------------+-----------+------+
 # Generate query to retrieve the customer site's distribution site name, and subnet id and size
 # @param site_name [String] Client's site name
 # @return [String] SQL query

@@ -6,7 +6,6 @@ require 'ostruct'
 require 'wikk_sql'
 require 'wikk_configuration'
 
-
 load '/wikk/etc/wikk.conf' unless defined? WIKK_CONF
 require_relative "#{RLIB}/customer/customer.rb"
 
@@ -44,7 +43,7 @@ def parse_args(argv: ARGV)
     @opt_parser.parse! argv
   rescue OptionParser::InvalidArgument => e
     puts e
-    puts @opt_parser.to_s
+    puts @opt_parser
     exit(-1)
   end
   options.argv = argv
@@ -52,7 +51,7 @@ def parse_args(argv: ARGV)
 end
 
 def usage
-  warn @opt_parser.to_s
+  warn @opt_parser
 end
 
 # args = parse_args(argv: ['-d', '--update', 'wikk001', 'wikk002']) #Test
