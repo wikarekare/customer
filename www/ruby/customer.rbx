@@ -150,7 +150,7 @@ end
 begin
   pstore_conf = JSON.parse(File.read(PSTORE_CONF))
   @authenticated = WIKK::Web_Auth.authenticated?(@cgi, pstore_config: pstore_conf)
-rescue Exception => _e # rubocop:disable Lint/RescueException
+rescue Exception => _e # rubocop:disable Lint/RescueException -- We don't want cgi's crashing without producing output
   @authenticated = false
 end
 
