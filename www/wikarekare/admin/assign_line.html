@@ -6,6 +6,7 @@
   <script src="/js/wikk_web_auth-min.js"></script>
   <script>
     var data_packet = {
+      "line_header": ["Off"],
       "lines": ["0"],
       "site_links": [
         {"site_name": "wikk000", "link": "0"}
@@ -29,7 +30,7 @@
         var hrow = the_table_head.insertRow(0);
         hrow.insertCell(0).innerHTML = "Site Name";
         for(var line = 0; line < data.lines.length ; line++) {
-          hrow.insertCell(line + 1).innerHTML = ((data.lines[line] == "0") ? "Off" : data.lines[line]);
+          hrow.insertCell(line + 1).innerHTML = data.line_header[line];
         }
 
         //Table body
@@ -112,8 +113,10 @@
     function get_lines_callback(data) {   //Called when we get a response.
       if(data != null && data.result != null) {
         data_packet.lines = [0];
+        data_packet.line_header = ['Off'];
         for(d = 0; d < data.result.affected_rows; d++) {
           data_packet.lines[d+1] = data.result.rows[d].line_number;
+          data_packet.line_header[d+1] = data.result.rows[d].internal_site_name;
         }
       }
     }
@@ -131,7 +134,7 @@
           "select_on": { "active": "1" }, //every active line
           "order_by": ['line_number'],
           "set": { }, //no fields to update in a GET
-          "result": ["line_number"]
+          "result": ["line_number", "internal_site_name"]
         },
         "id": new Date().getTime(),
         "jsonrpc": 2.0
@@ -154,15 +157,14 @@
   <span id="login_span"></span><br>
   <table id="lines_table" border="1">
     <thead id="lines_table_head">
-      <tr><th>Site Name</th><th>1</th><th>2</th><th>3</th><th>Offline</th></tr>
+      <tr><th>Site Name</th><th>Off</th><th>1</th><th>2</th></tr>
     </thead>
     <tbody id="lines_table_body">
       <tr>
         <th>wikk000</th>
-        <td><input type="radio" name="wikk000" value="1" checked="checked"/></td>
+        <td><input type="radio" name="wikk000" value="0" checked="checked"/></td>
+        <td><input type="radio" name="wikk000" value="1"/></td>
         <td><input type="radio" name="wikk000" value="2"/></td>
-        <td><input type="radio" name="wikk000" value="3"/></td>
-        <td><input type="radio" name="wikk000" value="0"/></td>
       </tr>
     </tbody>
   </table>

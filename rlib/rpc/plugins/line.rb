@@ -21,11 +21,14 @@ class Line < RPC
   def initialize(cgi:, authenticated: false)
     super
     if authenticated
-      @select_acl = [ 'line_id', 'site_name', 'line_number', 'site_address', 'latitude', 'longitude', 'comment', 'active', 'installation', 'termination', 'external_account_name', 'external_supplier', 'external_ipv4' ]
+      @select_acl = [ 'line_id', 'site_address', 'latitude', 'longitude', 'comment', 'termination',
+                      'installation', 'site_name', 'line_number', 'external_account_name', 'external_supplier',
+                      'external_ipv4', 'external_phone_number', 'active', 'failure_map', 'config_script',
+                      'internal_ipv4', 'internal_site_name', 'net_node_interface_id', 'up', 'ns_forwarder' ]
       @result_acl = @select_acl
       @set_acl = [ 'active' ]
     else
-      @select_acl = [ 'line_id', 'site_name', 'line_number', 'active' ]
+      @select_acl = [ 'line_id', 'site_name', 'line_number', 'active', 'internal_site_name' ]
       @result_acl = @select_acl
       @set_acl = []
     end
